@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TerraPulse AI">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#0369A1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <path d="M256 96c-58 78-104 132-104 190a104 104 0 0 0 208 0c0-58-46-112-104-190Z" fill="#FFFFFF" opacity="0.96"/>
+  <path d="M256 250v120" stroke="#0284C7" stroke-width="18" stroke-linecap="round"/>
+  <path d="M256 300c0-40 30-72 72-72 0 40-30 72-72 72Z" fill="#16A34A"/>
+  <path d="M256 330c0-30-22-54-54-54 0 30 22 54 54 54Z" fill="#22C55E" opacity="0.9"/>
+</svg>

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+.netrc
+.netrc.txt
+.vercel/
+
+# Data: never commit NASA granules, generated series or local databases
+download-data/
+data/raw/*
+data/interim/*
+data/processed/*
+data/models/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/models/.gitkeep
+data/harmony_ingest_status.json
+data/*.db
+data/*.db-*
+/public/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

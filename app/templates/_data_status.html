@@ -1,0 +1,9 @@
+{% if data_status == 'synthetic' %}
+  <span class="badge badge-synthetic">{{ t('decision.synthetic_badge') }}</span>
+{% elif data_status == 'real' %}
+  <span class="badge badge-real">{{ t('decision.real_badge') }}</span>
+{% elif data_status == 'mixed' %}
+  <span class="badge badge-mixed">{{ t('decision.mixed_badge') }}</span>
+{% else %}
+  <span class="badge">{{ t('decision.no_data') }}</span>
+{% endif %}

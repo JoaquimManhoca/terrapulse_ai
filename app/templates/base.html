@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="{{ lang }}" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF7F1">
+  <script>
+    try {
+      if (localStorage.getItem("terrapulse-theme") === "dark") {
+        document.documentElement.dataset.theme = "dark";
+        document.querySelector('meta[name="theme-color"]').content = "#201A12";
+      }
+    } catch (error) {
+      console.error("Unable to restore the saved theme preference.", error);
+    }
+  </script>
+  <meta name="description" content="{{ t('app.name') }} — {{ t('app.tagline') }}. {{ t('app.region') }}.">
+  <title>{% block title %}{{ t('app.name') }}{% endblock %}</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">{{ t('common.skip') }}</a>
+
+  <header class="app-header">
+    <div class="container header-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 512 512" role="img" aria-label="{{ t('app.name') }}">
+            <defs>
+              <linearGradient id="brandSky" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#1D6FA5"/>
+                <stop offset="1" stop-color="#155A8A"/>
+              </linearGradient>
+            </defs>
+            <rect width="512" height="512" rx="132" fill="url(#brandSky)"/>
+            <path d="M256 96c-58 78-104 132-104 190a104 104 0 0 0 208 0c0-58-46-112-104-190Z" fill="#FFFFFF" opacity="0.96"/>
+            <path d="M256 250v120" stroke="#155A8A" stroke-width="18" stroke-linecap="round"/>
+            <path d="M256 300c0-40 30-72 72-72 0 40-30 72-72 72Z" fill="#2E7D32"/>
+            <path d="M256 330c0-30-22-54-54-54 0 30 22 54 54 54Z" fill="#4C9A52" opacity="0.9"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <strong>{{ t('app.name') }}</strong>
+          <small>{{ t('app.tagline') }}</small>
+        </span>
+      </a>
+
+      <nav class="top-nav" aria-label="{{ t('nav.menu') }}">
+        {% set path = request.path %}
+        <a href="{{ url_for('why') }}" {% if path == '/porque' %}class="is-active" aria-current="page"{% endif %}>{{ t('nav.why') }}</a>
+        <a href="{{ url_for('history') }}" {% if path == '/historico' %}class="is-active" aria-current="page"{% endif %}>{{ t('nav.history') }}</a>
+        <a href="{{ url_for('analysis') }}" {% if path == '/analise' %}class="is-active" aria-current="page"{% endif %}>{{ t('nav.analysis') }}</a>
+        <a href="{{ url_for('about') }}" {% if path == '/sobre' %}class="is-active" aria-current="page"{% endif %}>{{ t('nav.about') }}</a>
+      </nav>
+
+      <button class="theme-toggle" type="button"
+              aria-label="{{ t('theme.toggle') }}"
+              aria-pressed="false"
+              title="{{ t('theme.switch_to_dark') }}"
+              data-theme-toggle
+              data-label-light="{{ t('theme.switch_to_dark') }}"
+              data-label-dark="{{ t('theme.switch_to_light') }}">
+        <span data-theme-icon="light">{{ icon('moon', 18) }}</span>
+        <span data-theme-icon="dark">{{ icon('sun', 18) }}</span>
+      </button>
+
+      <details class="lang-switch" role="group" aria-label="{{ t('common.language') }}">
+        <summary>
+          <span class="lang-globe">{{ icon('lang', 16) }}</span>
+          <span class="lang-current">{{ languages[lang].label }}</span>
+          <span class="lang-chevron">{{ icon('chevron', 14) }}</span>
+        </summary>
+        <div class="lang-menu">
+          {% for code, meta in languages.items() %}
+            <a class="lang-option {% if code == lang %}is-active{% endif %}"
+               href="{{ url_for('set_language', lang_code=code) }}"
+               hreflang="{{ code }}"
+               {% if code == lang %}aria-current="true"{% endif %}>
+              <span>{{ meta.label }}</span>
+              <span class="lang-option-meta">
+                {% if not meta.reviewed %}<em>{{ t('common.provisional') }}</em>{% endif %}
+                {% if code == lang %}{{ icon('check', 15) }}{% endif %}
+              </span>
+            </a>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <main id="main" class="app-main">
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Navegação principal">
+    {% from "_icons.html" import icon %}
+    {% set path = request.path %}
+    <a class="nav-item {% if path == '/' %}is-active{% endif %}" href="{{ url_for('index') }}" {% if path == '/' %}aria-current="page"{% endif %}>
+      {{ icon('home', 24) }}<span>{{ t('nav.decision') }}</span>
+    </a>
+    <a class="nav-item {% if path == '/porque' %}is-active{% endif %}" href="{{ url_for('why') }}" {% if path == '/porque' %}aria-current="page"{% endif %}>
+      {{ icon('why', 24) }}<span>{{ t('nav.why') }}</span>
+    </a>
+    <a class="nav-item {% if path == '/historico' %}is-active{% endif %}" href="{{ url_for('history') }}" {% if path == '/historico' %}aria-current="page"{% endif %}>
+      {{ icon('history', 24) }}<span>{{ t('nav.history') }}</span>
+    </a>
+    <a class="nav-item {% if path == '/analise' %}is-active{% endif %}" href="{{ url_for('analysis') }}" {% if path == '/analise' %}aria-current="page"{% endif %}>
+      {{ icon('chart', 24) }}<span>{{ t('nav.analysis') }}</span>
+    </a>
+    <a class="nav-item {% if path == '/sobre' %}is-active{% endif %}" href="{{ url_for('about') }}" {% if path == '/sobre' %}aria-current="page"{% endif %}>
+      {{ icon('about', 24) }}<span>{{ t('nav.about') }}</span>
+    </a>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ t('history.title') }} · {{ t('app.name') }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('app.region') }} · {{ t('app.crop') }}</p>
+  <h1 class="page-title">{{ t('history.title') }}</h1>
+  <p class="page-intro">{{ t('history.intro') }}</p>
+  <div class="meta-row">
+    {% include "_data_status.html" %}
+    {% if last_updated %}
+      <span class="updated">{{ icon('clock', 16) }} {{ t('decision.updated') }}: {{ last_updated }}</span>
+    {% endif %}
+  </div>
+
+  {% if monthly %}
+  <section class="panel">
+    <h2>{{ t('history.monthly_title') }}</h2>
+    <div class="bar-chart-wrap">
+      <div class="bar-chart" role="img" aria-label="{{ t('history.monthly_title') }}">
+        {% for month in monthly %}
+          <div class="bar" title="{{ month.month }}: {{ month.precip_mm }} {{ t('common.mm') }}">
+            <span class="bar-fill" style="height: {{ month.height }}%"></span>
+            <span class="bar-label">{{ month.label }}</span>
+            <span class="bar-value">{{ month.precip_mm if month.precip_mm is not none else '—' }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if seasons %}
+  <section class="panel">
+    <h2>{{ t('history.seasons_title') }}</h2>
+    <p class="panel-note">{{ t('history.expand_hint') }}</p>
+    <div class="season-accordion">
+      {% for season in seasons %}
+        <details class="season-details">
+          <summary>
+            <span class="season-label">{{ season.label }}</span>
+            <span class="bar-track" aria-hidden="true">
+              <span class="{% if season.chip == 'real' %}is-real{% elif season.chip == 'partial' %}is-partial{% else %}is-synthetic{% endif %}" style="width: {{ season.width_pct }}%"></span>
+            </span>
+            <span class="row-value">
+              {{ season.total_mm }} {{ t('common.mm') }}
+              <span class="chip chip-{{ season.chip }}">{{ season.real_pct|round|int }}%</span>
+            </span>
+            <span class="season-chevron" aria-hidden="true">{{ icon('chevron', 18) }}</span>
+          </summary>
+          <div class="season-months">
+            <div class="bar-chart bar-chart-mini" role="img" aria-label="{{ season.label }} · {{ t('history.monthly_detail') }}">
+              {% for month in season.months %}
+                <div class="bar" title="{{ season.label }} · {{ month.label }}: {{ month.total_mm }} {{ t('common.mm') }}">
+                  <span class="bar-fill bar-fill-alt" style="height: {{ month.height }}%"></span>
+                  <span class="bar-label">{{ month.label }}</span>
+                  <span class="bar-value">{{ month.total_mm }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+    <p class="panel-note">{{ t('history.seasons_note') }}</p>
+  </section>
+  {% endif %}
+
+  {% if not monthly %}
+    <p class="notice">{{ t('history.no_data') }}</p>
+  {% endif %}
+
+  <a class="link-more analysis-link" href="{{ url_for('analysis') }}">{{ t('history.explore_analysis') }} &rarr;</a>
+
+  {% if data_status == 'synthetic' %}
+    <p class="notice">{{ t('common.synthetic_note') }}</p>
+  {% elif data_status == 'mixed' %}
+    <p class="notice">{{ t('common.mixed_note') }}</p>
+  {% endif %}
+</section>
+{% endblock %}

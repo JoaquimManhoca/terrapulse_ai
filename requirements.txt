@@ -1,0 +1,16 @@
+# Runtime dependencies for the Flask app and Vercel Functions.
+Flask>=3.0,<4.0
+Flask-Cors>=4.0
+Flask-SQLAlchemy>=3.1
+python-dotenv>=1.0
+
+# Decision engine, persisted models, and climate analysis.
+pandas>=2.2
+numpy>=1.26
+scipy>=1.13
+scikit-learn>=1.5
+joblib>=1.4
+requests>=2.32
+
+# PostgreSQL for persistent Vercel storage.
+psycopg[binary]>=3.2,<4

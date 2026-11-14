@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ t('why.title') }} · {{ t('app.name') }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('app.region') }} &middot; {{ t('app.crop') }}{% if decision.season %} &middot; {{ decision.season }}{% endif %}</p>
+  <h1 class="page-title">{{ t('why.title') }}</h1>
+  <p class="page-intro">{{ t('why.intro') }}</p>
+  <div class="meta-row">
+    {% set data_status = decision.data_status %}
+    {% include "_data_status.html" %}
+    {% if decision.last_updated %}
+      <span class="updated">{{ icon('clock', 16) }} {{ t('decision.updated') }}: {{ decision.last_updated }}</span>
+    {% endif %}
+    <span class="model-chip">{{ icon('spark', 14) }} {{ decision.model_version }}</span>
+  </div>
+
+  <div class="panel-grid">
+    <section class="panel">
+      <h2>{{ t('why.probabilities_title') }}</h2>
+      <div class="prob-list">
+        {% for prob in probabilities %}
+          <div class="prob-row">
+            <div class="prob-top">
+              <span class="prob-label">{{ t(prob.key) }}{% if prob.is_ml %} · ML{% endif %}</span>
+              <span class="prob-value">{{ prob.pct }}{{ t('common.percent') }}</span>
+            </div>
+            <div class="prob-bar {{ prob.cls }}" role="img" aria-label="{{ t(prob.key) }} {{ prob.pct }}{{ t('common.percent') }}">
+              <span style="width: {{ prob.pct }}%"></span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="panel-note">{{ t('why.probabilities_note') }}</p>
+    </section>
+
+    {% if recent %}
+    <section class="panel">
+      <h2>{{ t('history.rain') }} &middot; {{ t('common.last_30_days') }}</h2>
+      <div class="sparkline" aria-hidden="true">
+        {% for day in recent %}
+          <span class="spark-bar" style="height: {{ day.height }}%" title="{{ day.label }}: {{ day.precip_mm }} {{ t('common.mm') }}"></span>
+        {% endfor %}
+      </div>
+      <p class="panel-note">{{ t('why.rain_window_note') }}</p>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="why-grid">
+    <article class="why-card">
+      <span class="why-card-icon tone-sky">{{ icon('rain', 26) }}</span>
+      <h3>{{ t('why.rain_title') }}</h3>
+      <p>{{ t('why.rain_body') }}</p>
+      {% for reason in decision.reasons if reason.code == 'rain_7d' %}
+        <strong class="why-value">{{ reason.value }} {{ reason.unit }}</strong>
+      {% endfor %}
+    </article>
+
+    <article class="why-card">
+      <span class="why-card-icon tone-amber">{{ icon('sun', 26) }}</span>
+      <h3>{{ t('why.dry_title') }}</h3>
+      <p>{{ t('why.dry_body') }}</p>
+      {% for reason in decision.reasons if reason.code == 'dry_streak' %}
+        <strong class="why-value">{{ reason.value }} {{ reason.unit }}</strong>
+      {% endfor %}
+    </article>
+
+    <article class="why-card">
+      <span class="why-card-icon tone-green">{{ icon('history', 26) }}</span>
+      <h3>{{ t('why.history_title') }}</h3>
+      <p>{{ t('why.history_body') }}</p>
+      {% set false_rate = decision.climatology.get('false_onset_rate') %}
+      {% if false_rate is not none %}
+        <strong class="why-value">{{ (false_rate * 100)|round|int }}{{ t('common.percent') }}</strong>
+      {% endif %}
+      {% if decision.climatology.get('median_onset') %}
+        <span class="why-note">{{ t('why.median_onset') }}: {{ decision.climatology.median_onset }}</span>
+      {% endif %}
+      {% if decision.climatology.get('earliest_onset') %}
+        <span class="why-note">{{ t('why.onset_range') }}: {{ decision.climatology.earliest_onset }} – {{ decision.climatology.latest_onset }}</span>
+      {% endif %}
+    </article>
+
+    <article class="why-card">
+      <span class="why-card-icon tone-sky">{{ icon('calendar', 26) }}</span>
+      <h3>{{ t('why.forecast_title') }}</h3>
+      <p>{{ t('why.forecast_body') }}</p>
+      {% if decision.forecast %}
+        <strong class="why-value">{{ decision.forecast.rain_7d }} {{ t('common.mm') }}</strong>
+      {% else %}
+        <span class="why-note">{{ t('decision.forecast_unavailable') }}</span>
+      {% endif %}
+    </article>
+  </div>
+
+  <section class="panel">
+    <h2>{{ t('why.signals_title') }}</h2>
+    <ul class="reason-list">
+      {% for reason in decision.reasons %}
+        <li class="reason">
+          <span class="reason-icon">{{ icon(reason.icon, 20) }}</span>
+          <span class="reason-label">{{ reason.label }}</span>
+          <span class="reason-value">
+            {% if reason.value is not none %}{{ reason.value }}{% endif %}
+            {% if reason.unit %}<em>{{ reason.unit }}</em>{% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="notice notice-warn">
+    <div class="notice-head">{{ icon('alert', 20) }}<strong>{{ t('why.limit_title') }}</strong></div>
+    <p>{{ t('why.limit_body') }}</p>
+  </section>
+
+  {% if decision.data_status == 'mixed' %}
+    <p class="notice">{{ t('common.mixed_note') }}</p>
+  {% elif decision.data_status == 'synthetic' %}
+    <p class="notice">{{ t('common.synthetic_note') }}</p>
+  {% endif %}
+
+  <a class="link-more" href="{{ url_for('index') }}">← {{ t('nav.decision') }}</a>
+</section>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ t('analysis.title') }} · {{ t('app.name') }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('app.region') }} · {{ t('app.crop') }} · IMERG Final 1998–2024</p>
+  <h1 class="page-title">{{ t('analysis.title') }}</h1>
+  <p class="page-intro">{{ t('analysis.intro') }}</p>
+
+  {% if not sections.seasonal %}
+    <p class="notice">{{ t('analysis.no_data') }}</p>
+  {% else %}
+
+  <section class="panel">
+    <h2>{{ t('analysis.seasonal_title') }}</h2>
+    <div class="chart-wrap">{{ charts.seasonal|safe }}</div>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.sen_slope') }}</span>
+        <strong>{{ '%.1f'|format(sections.seasonal.sen.slope) }} {{ t('analysis.mm_per_season') }}</strong>
+        <em>IC 95%: {{ '%.1f'|format(sections.seasonal.sen.ci_low) }} … {{ '%.1f'|format(sections.seasonal.sen.ci_high) }}</em>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Mann-Kendall (p)</span>
+        <strong>{{ '%.3f'|format(sections.seasonal.mk.p_value) }}</strong>
+        {% if sections.seasonal.mk.trend == 'no_trend' %}
+          <em class="badge badge-neutral">{{ t('analysis.no_trend') }}</em>
+        {% else %}
+          <em class="badge badge-sig">{{ t('analysis.' ~ sections.seasonal.mk.trend) }}</em>
+        {% endif %}
+      </div>
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.seasons_used') }}</span>
+        <strong>{{ sections.seasonal.n_used }}</strong>
+        {% if sections.seasonal.excluded %}<em>{{ sections.seasonal.excluded }} {{ t('analysis.excluded') }}</em>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if sections.november %}
+  <section class="panel">
+    <h2>{{ t('analysis.november_title') }}</h2>
+    <div class="chart-wrap">{{ charts.november|safe }}</div>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.sen_slope') }}</span>
+        <strong>{{ '%.1f'|format(sections.november.sen.slope) }} {{ t('analysis.mm_per_year') }}</strong>
+        <em>IC 95%: {{ '%.1f'|format(sections.november.sen.ci_low) }} … {{ '%.1f'|format(sections.november.sen.ci_high) }}</em>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Mann-Kendall (p)</span>
+        <strong>{{ '%.3f'|format(sections.november.mk.p_value) }}</strong>
+        {% if sections.november.mk.trend == 'no_trend' %}
+          <em class="badge badge-neutral">{{ t('analysis.no_trend') }}</em>
+        {% else %}
+          <em class="badge badge-sig">{{ t('analysis.' ~ sections.november.mk.trend) }}</em>
+        {% endif %}
+      </div>
+    </div>
+    <p class="panel-note">{{ t('analysis.november_note') }}</p>
+  </section>
+  {% endif %}
+
+  {% if sections.climatology %}
+  <section class="panel">
+    <h2>{{ t('analysis.climatology_title') }}</h2>
+    <div class="chart-wrap">{{ charts.climatology|safe }}</div>
+    <p class="panel-note">{{ t('analysis.climatology_note') }}</p>
+  </section>
+  {% endif %}
+
+  {% if sections.onset and sections.onset.median is not none %}
+  <section class="panel">
+    <h2>{{ t('analysis.onset_title') }}</h2>
+    <div class="chart-wrap">{{ charts.onset|safe }}</div>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.onset_median') }}</span>
+        <strong>{{ '%.0f'|format(sections.onset.median) }} {{ t('analysis.days_after_oct1') }}</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.onset_typical') }}</span>
+        <strong>{{ '%.0f'|format(sections.onset.q1) }}–{{ '%.0f'|format(sections.onset.q3) }}</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.onset_detected') }}</span>
+        <strong>{{ sections.onset.n_effective }}/{{ sections.onset.n_seasons }}</strong>
+      </div>
+    </div>
+    <p class="panel-note">{{ t('analysis.onset_note') }}</p>
+  </section>
+  {% endif %}
+
+  {% if sections.comparison %}
+  <section class="panel">
+    <h2>{{ t('analysis.comparison_title') }}</h2>
+    <div class="chart-wrap">{{ charts.comparison|safe }}</div>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.ttest_p') }}</span>
+        <strong>{{ '%.3f'|format(sections.comparison.comparison.p_value) }}</strong>
+        {% if sections.comparison.comparison.significant %}
+          <em class="badge badge-sig">{{ t('analysis.significant') }}</em>
+        {% else %}
+          <em class="badge badge-neutral">{{ t('analysis.not_significant') }}</em>
+        {% endif %}
+      </div>
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.difference') }}</span>
+        <strong>{{ '%+.0f'|format(sections.comparison.comparison.difference) }} {{ t('common.mm') }}</strong>
+        <em>IC 95%: {{ '%.0f'|format(sections.comparison.comparison.difference_ci_low) }} … {{ '%.0f'|format(sections.comparison.comparison.difference_ci_high) }}</em>
+      </div>
+    </div>
+    <p class="panel-note">{{ t('analysis.comparison_note') }}</p>
+  </section>
+  {% endif %}
+
+  {% if sections.model %}
+  <section class="panel">
+    <h2>{{ t('analysis.model_title') }}</h2>
+    <p class="panel-note">{{ t('analysis.model_note') }} <code>{{ sections.model.version }}</code></p>
+    {% if charts.importances %}
+    <div class="chart-wrap">{{ charts.importances|safe }}</div>
+    {% endif %}
+    <div class="stat-row">
+      {% set metrics = sections.model.metrics %}
+      {% if metrics.validation %}
+      <div class="stat">
+        <span class="stat-label">ROC-AUC (validação)</span>
+        <strong>{{ '%.3f'|format(metrics.validation.roc_auc) }}</strong>
+      </div>
+      {% endif %}
+      {% if metrics.test %}
+      <div class="stat">
+        <span class="stat-label">ROC-AUC (teste)</span>
+        <strong>{{ '%.3f'|format(metrics.test.roc_auc) }}</strong>
+      </div>
+      {% endif %}
+      {% if sections.model.splits.test %}
+      <div class="stat">
+        <span class="stat-label">{{ t('analysis.test_seasons') }}</span>
+        <strong>{{ sections.model.splits.test|join(', ') }}</strong>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="notice notice-warn">
+    <div class="notice-head">{{ icon('alert', 20) }}<strong>{{ t('analysis.limit_title') }}</strong></div>
+    <p>{{ t('analysis.limit_body') }}</p>
+  </section>
+
+  {% endif %}
+
+  <a class="link-more" href="{{ url_for('history') }}">{{ t('nav.history') }} &rarr;</a>
+</section>
+{% endblock %}

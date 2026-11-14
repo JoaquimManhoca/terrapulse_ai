@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ t('about.title') }} · {{ t('app.name') }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('app.phase') }}</p>
+  <h1 class="page-title">{{ t('about.title') }}</h1>
+
+  <article class="about-section">
+    <span class="why-card-icon tone-green">{{ icon('leaf', 24) }}</span>
+    <div>
+      <h3>{{ t('about.mission_title') }}</h3>
+      <p>{{ t('about.mission_body') }}</p>
+    </div>
+  </article>
+
+  <article class="about-section">
+    <span class="why-card-icon tone-sky">{{ icon('rain', 24) }}</span>
+    <div>
+      <h3>{{ t('about.how_title') }}</h3>
+      <p>{{ t('about.how_body') }}</p>
+    </div>
+  </article>
+
+  <article class="about-section">
+    <span class="why-card-icon tone-sky">{{ icon('calendar', 24) }}</span>
+    <div>
+      <h3>{{ t('about.source_title') }}</h3>
+      <p>{{ t('about.source_body') }}</p>
+    </div>
+  </article>
+
+  <article class="about-section">
+    <span class="why-card-icon tone-amber">{{ icon('alert', 24) }}</span>
+    <div>
+      <h3>{{ t('about.limits_title') }}</h3>
+      <p>{{ t('about.limits_body') }}</p>
+    </div>
+  </article>
+
+  <article class="about-section">
+    <span class="why-card-icon tone-green">{{ icon('speaker', 24) }}</span>
+    <div>
+      <h3>{{ t('about.language_title') }}</h3>
+      <p>{{ t('about.language_body') }}</p>
+    </div>
+  </article>
+
+  <p class="team-note">{{ t('about.team') }}</p>
+</section>
+{% endblock %}

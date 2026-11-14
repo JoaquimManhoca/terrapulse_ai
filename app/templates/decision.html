@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ t('nav.decision') }} &middot; {{ t('app.name') }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <form class="selector-banner" method="get" action="{{ url_for('index') }}" aria-labelledby="selector-title">
+    <div class="selector-banner-head">
+      <span class="selector-banner-icon">{{ icon('leaf', 24) }}</span>
+      <p class="selector-title" id="selector-title">{{ t('selector.title') }}</p>
+    </div>
+
+    <div class="selector-fields">
+      <label class="field">
+        <span class="field-label">{{ t('selector.city') }}</span>
+        <span class="select-wrap">
+          <select name="region" data-auto-submit>
+            {% for code, meta in regions.items() %}
+              <option value="{{ code }}"{% if code == selected_region %} selected{% endif %}>{{ t(meta.label_key) }}{% if not meta.supported %} ({{ t('selector.soon') }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">{{ t('selector.crop') }}</span>
+        <span class="select-wrap">
+          <select name="crop" data-auto-submit>
+            {% for code, meta in crops.items() %}
+              <option value="{{ code }}"{% if code == selected_crop %} selected{% endif %}>{{ t(meta.label_key) }}{% if not meta.supported %} ({{ t('selector.soon') }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </span>
+      </label>
+    </div>
+
+    <noscript>
+      <button type="submit">{{ t('selector.apply') }}</button>
+    </noscript>
+  </form>
+
+  {% if selection_supported %}
+    <div class="decision-card state-{{ decision.state|lower }}" data-speech="{{ decision.speech }}">
+      <div class="decision-overview">
+        <div class="decision-copy">
+          <span class="decision-kicker">{{ icon(decision.icon, 18) }}{{ t('decision.title') }}</span>
+          <div class="decision-meta">
+            {% set data_status = decision.data_status %}
+            {% include "_data_status.html" %}
+            {% if decision.last_updated %}
+              <small class="decision-updated">{{ t('decision.updated') }}: {{ decision.last_updated }}</small>
+            {% endif %}
+          </div>
+          <h1 class="decision-headline">{{ decision.headline }}</h1>
+          <p class="decision-recommendation">{{ decision.recommendation }}</p>
+          <p class="decision-sub">{{ decision.summary }}</p>
+          {% if decision.days_to_plant is not none %}
+            <p class="decision-days">
+              <strong>{{ decision.days_to_plant }}</strong> {{ t('common.days') }}
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="decision-weather" aria-live="polite">
+          <div class="weather-art weather-art--{{ decision.weather.condition }}"
+               data-weather-scene
+               role="img"
+               aria-label="{{ decision.weather.label }}, {{ decision.weather.caption }}{% if decision.weather.probability_pct is not none %}, {{ t('forecast.rain_chance') }} {{ decision.weather.probability_pct }}%{% endif %}">
+            {{ icon(decision.weather.icon, 64) }}
+          </div>
+          <strong data-weather-label>{{ decision.weather.label }}</strong>
+          <small data-weather-caption>{{ decision.weather.caption }}</small>
+          <small class="weather-probability"
+                 data-weather-probability
+                 data-label="{{ t('forecast.rain_chance') }}"
+                 {% if decision.weather.probability_pct is none %}hidden{% endif %}>{% if decision.weather.probability_pct is not none %}{{ decision.weather.probability_pct }}% {{ t('forecast.rain_chance') }}{% endif %}</small>
+        </div>
+      </div>
+
+      {% if decision.forecast and decision.forecast.daily %}
+        <section class="weather-forecast" aria-labelledby="weather-forecast-title">
+          <h2 id="weather-forecast-title">{{ t('forecast.title') }}</h2>
+          <div class="forecast-days" role="group" aria-label="{{ t('forecast.title') }}">
+            {% for day in decision.forecast.daily %}
+              <button class="forecast-day{% if loop.first %} is-active{% endif %}"
+                      type="button"
+                      data-weather-day
+                      data-condition="{{ day.condition }}"
+                      data-icon="{{ day.icon }}"
+                      data-label="{{ day.label }}"
+                      data-caption="{{ day.weekday }}, {{ day.date }}"
+                      data-probability="{% if day.probability_pct is not none %}{{ day.probability_pct }}{% endif %}"
+                      aria-pressed="{{ 'true' if loop.first else 'false' }}"
+                      aria-label="{{ day.weekday }} {{ day.date }}: {{ day.label }}{% if day.probability_pct is not none %}, {{ t('forecast.rain_chance') }} {{ day.probability_pct }}%{% endif %}">
+                <span class="forecast-weekday">{{ day.weekday }}</span>
+                <span class="weather-day-icon weather-day-icon--{{ day.condition }}">
+                  {{ icon(day.icon, 24) }}
+                </span>
+                <span class="forecast-date">{{ day.date }}</span>
+                <span class="forecast-probability">
+                  {% if day.probability_pct is not none %}{{ day.probability_pct }}%{% else %}—{% endif %}
+                </span>
+              </button>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <p class="forecast-unavailable">{{ t('forecast.unavailable') }}</p>
+      {% endif %}
+
+      <div class="confidence">
+        <div class="confidence-top">
+          <span>{{ t('decision.confidence') }}</span>
+          <strong>{{ (decision.confidence * 100)|round|int }}{{ t('common.percent') }}</strong>
+        </div>
+        <div class="confidence-bar" role="img" aria-label="{{ t('decision.confidence') }} {{ (decision.confidence * 100)|round|int }}{{ t('common.percent') }}">
+          <span style="width: {{ (decision.confidence * 100)|round|int }}%"></span>
+        </div>
+      </div>
+
+      <button class="btn-listen" type="button" data-listen aria-label="{{ t('decision.listen') }}">
+        {{ icon('speaker', 22) }}<span>{{ t('decision.listen') }}</span>
+      </button>
+    </div>
+
+    <div class="decision-links">
+      <a class="link-more" href="{{ url_for('why') }}">{{ t('decision.why_link') }} &rarr;</a>
+      <a class="link-more" href="{{ url_for('history') }}">{{ t('nav.history') }} &rarr;</a>
+    </div>
+  {% else %}
+    <section class="panel selector-empty" role="status">
+      <span class="selector-empty-icon">{{ icon('info', 28) }}</span>
+      <h1 class="selector-empty-title">{{ t('selector.unavailable_title') }}</h1>
+      <p>
+        {{ t('selector.unavailable_body').format(
+          city=t(regions[selected_region].label_key),
+          crop=t(crops[selected_crop].label_key)
+        ) }}
+      </p>
+    </section>
+  {% endif %}
+</section>
+{% endblock %}
