@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.pool import NullPool
 
 from app import create_app
 from app.config import Config, _database_uri, _engine_options
@@ -23,12 +24,43 @@ def test_postgres_urls_use_psycopg_and_disable_prepared_statements():
 
     assert uri == "postgresql+psycopg://user:pass@host/db?sslmode=require"
     assert _engine_options(uri, is_vercel=True) == {
+        "connect_args": {"prepare_threshold": None},
+        "poolclass": NullPool,
+    }
+    assert _engine_options(uri, is_vercel=False) == {
+        "connect_args": {"prepare_threshold": None},
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "connect_args": {"prepare_threshold": None},
-        "pool_size": 1,
-        "max_overflow": 0,
     }
+
+
+def test_supabase_direct_url_forces_ssl(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
+
+    uri = _database_uri(
+        "postgresql://postgres:secret@db.abcdefgh.supabase.co:5432/postgres"
+    )
+
+    assert uri == (
+        "postgresql+psycopg://postgres:secret@db.abcdefgh.supabase.co:5432"
+        "/postgres?sslmode=require"
+    )
+
+
+def test_supabase_direct_url_can_be_rewritten_to_ipv4_pooler(monkeypatch):
+    monkeypatch.setenv(
+        "SUPABASE_POOLER_HOST", "aws-1-eu-north-1.pooler.supabase.com"
+    )
+    monkeypatch.delenv("SUPABASE_POOLER_PORT", raising=False)
+
+    uri = _database_uri(
+        "postgres://postgres:secret@db.abcdefgh.supabase.co:5432/postgres"
+    )
+
+    assert uri == (
+        "postgresql+psycopg://postgres.abcdefgh:secret@"
+        "aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
 
 
 def test_sqlite_app_uses_sqlite_compatible_engine_options(tmp_path):

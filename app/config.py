@@ -3,14 +3,22 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
+from sqlalchemy.pool import NullPool
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 IS_VERCEL_DEPLOYMENT = os.getenv("VERCEL") == "1"
+
+# Supabase only publishes IPv6 records for db.<ref>.supabase.co. Serverless
+# platforms such as Vercel are IPv4-only, so direct connections fail there.
+# Using the pooler host (IPv4) fixes it; see docs/DEPLOY_VERCEL.md.
+_SUPABASE_DIRECT_HOST = re.compile(r"^db\.([a-z0-9]+)\.supabase\.co$")
 
 
 def _as_bool(value: str | None, default: bool = False) -> bool:
@@ -23,18 +31,48 @@ def _database_uri(value: str | None) -> str:
     if not value:
         return "sqlite:///" + (BASE_DIR / "data" / "terrapulse.db").as_posix()
     if value.startswith("postgres://"):
-        return "postgresql+psycopg://" + value[len("postgres://") :]
-    if value.startswith("postgresql://"):
-        return "postgresql+psycopg://" + value[len("postgresql://") :]
-    return value
+        value = "postgresql://" + value[len("postgres://") :]
+    if not value.startswith("postgresql://"):
+        return value
+
+    parts = urlsplit(value)
+    host = parts.hostname or ""
+    netloc = parts.netloc
+    query = dict(parse_qsl(parts.query))
+
+    pooler_host = os.getenv("SUPABASE_POOLER_HOST", "").strip()
+    match = _SUPABASE_DIRECT_HOST.match(host)
+    if match and pooler_host:
+        project_ref = match.group(1)
+        user = parts.username or "postgres"
+        if not user.startswith("postgres."):
+            user = f"postgres.{project_ref}"
+        credentials = f"{user}:{parts.password}" if parts.password else user
+        port = os.getenv("SUPABASE_POOLER_PORT", "6543").strip() or "6543"
+        netloc = f"{credentials}@{pooler_host}:{port}"
+
+    if "sslmode" not in query and (
+        host.endswith(".supabase.co") or host.endswith(".supabase.com")
+    ):
+        query["sslmode"] = "require"
+
+    return urlunsplit(
+        ("postgresql+psycopg", netloc, parts.path, urlencode(query), parts.fragment)
+    )
 
 
 def _engine_options(database_uri: str, is_vercel: bool) -> dict:
-    options = {"pool_pre_ping": True, "pool_recycle": 300}
+    """Engine options tuned for a long-lived process or a serverless function."""
+    options: dict = {}
     if database_uri.startswith("postgresql+psycopg://"):
         options["connect_args"] = {"prepare_threshold": None}
     if is_vercel:
-        options.update({"pool_size": 1, "max_overflow": 0})
+        # Functions are short-lived and scale horizontally; a shared pool is
+        # wasted and can exhaust connections (or time out under concurrency).
+        options["poolclass"] = NullPool
+    else:
+        options["pool_pre_ping"] = True
+        options["pool_recycle"] = 300
     return options
 
 
@@ -54,15 +92,11 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = _database_uri(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        **(
-            {"pool_size": 1, "max_overflow": 0}
-            if IS_VERCEL_DEPLOYMENT
-            else {}
-        ),
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        {"poolclass": NullPool}
+        if IS_VERCEL_DEPLOYMENT
+        else {"pool_pre_ping": True, "pool_recycle": 300}
+    )
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

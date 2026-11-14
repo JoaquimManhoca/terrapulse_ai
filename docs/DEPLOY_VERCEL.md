@@ -27,11 +27,23 @@ Environment Variables**, adiciona para Preview e Production:
 | `FORECAST_ENABLED` | `true` |
 
 A aplicação converte `postgresql://` para o driver `psycopg`, desativa
-prepared statements para compatibilidade com poolers em modo transaction e
-recusa SQLite na Vercel. No Supabase, escolhe **Connect → Transaction pooler**
-(porta `6543`) para as Functions e usa SSL (`sslmode=require`). Não coloques
-URLs, palavras-passe nem `.env` no GitHub. A Vercel define automaticamente
-`VERCEL=1`.
+prepared statements para compatibilidade com poolers em modo transaction,
+força SSL em hosts Supabase e recusa SQLite na Vercel. Em Functions, o engine
+usa `NullPool` para não esgotar ligações entre invocações.
+
+> **Importante (Supabase):** `db.<ref>.supabase.co` só publica registos IPv6.
+> A Vercel corre em IPv4, pelo que a ligação direta falha (DNS/host irresolúvel)
+> e a aplicação responde `500 Internal Server Error`. Usa sempre o
+> **Connect → Transaction pooler** (porta `6543`, IPv4), por exemplo:
+>
+> ```
+> DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-1-<region>.pooler.supabase.com:6543/postgres?sslmode=require
+> ```
+>
+> Em alternativa, mantém a URL direta e define
+> `SUPABASE_POOLER_HOST=aws-1-<region>.pooler.supabase.com` para a aplicação
+> reescrever o host automaticamente. Não coloques URLs, palavras-passe nem
+> `.env` no GitHub. A Vercel define automaticamente `VERCEL=1`.
 
 ## 3. Copiar as observações reais
 
