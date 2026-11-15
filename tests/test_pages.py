@@ -194,6 +194,9 @@ def test_decision_page_renders_30_day_plan_and_trust(client, app, monkeypatch):
     html = client.get("/?lang=en").get_data(as_text=True)
 
     assert 'class="planting-plan"' in html
+    assert 'class="plan-days"' in html
+    assert 'class="plan-scroll-hint"' in html
+    assert 'aria-current="date"' in html
     assert html.count("data-plan-day") == 30
     assert "30-day plan" in html
     assert "Data confidence and sources" in html

@@ -81,8 +81,11 @@
       {% if decision.plan and decision.plan.days %}
         <section class="planting-plan" aria-labelledby="planting-plan-title">
           <div class="plan-head">
-            <div>
-              <h2 id="planting-plan-title">{{ t('plan.title') }}</h2>
+            <div class="plan-heading">
+              <h2 id="planting-plan-title">
+                <span class="plan-title-icon">{{ icon('calendar', 16) }}</span>
+                {{ t('plan.title') }}
+              </h2>
               <p class="plan-sub">{{ t('plan.subtitle').format(forecast_days=decision.plan.forecast_days, climate_days=decision.plan.climate_days, years=decision.plan.climate_years) }}</p>
             </div>
             <div class="plan-window">
@@ -103,10 +106,13 @@
             {% endfor %}
           </div>
 
-          <div class="plan-days" role="list" aria-label="{{ t('plan.title') }}">
+          <p class="plan-scroll-hint">{{ icon('chevron', 12) }}{{ t('plan.swipe_hint') }}</p>
+
+          <div class="plan-days" role="list" aria-label="{{ t('plan.title') }}" tabindex="0">
             {% for day in decision.plan.days %}
               <div class="plan-day plan-day--{{ day.action }}{% if day.phase == 'climate' %} is-climate{% endif %}{% if day.is_today %} is-today{% endif %}"
                    role="listitem"
+                   {% if day.is_today %}aria-current="date"{% endif %}
                    data-plan-day
                    data-plan-phase="{{ day.phase }}"
                    data-plan-action="{{ day.action }}"

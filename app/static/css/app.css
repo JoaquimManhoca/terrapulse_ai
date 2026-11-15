@@ -799,7 +799,7 @@ button {
 }
 
 .planting-plan {
-  padding-top: var(--space-3);
+  padding-top: var(--space-4);
   border-top: 1px solid rgba(255, 255, 255, 0.24);
 }
 
@@ -809,51 +809,86 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.plan-heading {
+  min-width: 0;
 }
 
 .plan-head h2 {
-  margin-bottom: 4px;
-  font-size: 13px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.plan-title-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.plan-title-icon .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .plan-sub {
-  max-width: 52ch;
-  font-size: 10px;
-  line-height: 1.35;
-  opacity: 0.8;
+  max-width: 56ch;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.82;
 }
 
 .plan-window {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 118px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
   text-align: right;
   font-size: 10px;
-  opacity: 0.9;
+}
+
+.plan-window > span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.72;
 }
 
 .plan-window strong {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .plan-window small {
   font-size: 10px;
-  opacity: 0.8;
+  opacity: 0.78;
 }
 
 .plan-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px 10px;
-  margin-bottom: var(--space-2);
-  font-size: 9px;
+  gap: 6px 8px;
+  font-size: 10px;
   font-weight: 700;
-  opacity: 0.86;
 }
 
 .plan-legend-spacer {
@@ -867,12 +902,20 @@ button {
   gap: 5px;
 }
 
+.plan-legend-source {
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
 .plan-legend-source::before {
   content: "";
-  width: 12px;
-  height: 8px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  width: 10px;
+  height: 7px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  opacity: 0.8;
 }
 
 .plan-legend-source--climate::before {
@@ -892,45 +935,90 @@ button {
 .plan-legend-action--wait { color: #ffc4a3; }
 .plan-legend-action--monitor { color: #bfe9ff; }
 
+.plan-scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.plan-scroll-hint .icon {
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+}
+
 .plan-days {
-  --plan-gap: 6px;
+  --plan-gap: 8px;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: calc((100% - 36px) / 7);
+  grid-auto-columns: calc((100% - 48px) / 7);
   gap: var(--plan-gap);
   overflow-x: auto;
-  padding: 2px 1px 8px;
+  padding: 3px 1px 10px;
+  scroll-padding-inline: 1px;
   scroll-snap-type: x mandatory;
+  overscroll-behavior-inline: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.42) transparent;
   -webkit-overflow-scrolling: touch;
 }
 
+.plan-days:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
 .plan-day {
-  --plan-accent: rgba(255, 255, 255, 0.4);
+  --plan-accent: #d7e6ea;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-  padding: 6px 3px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  min-height: 104px;
+  padding: 8px 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 38%, rgba(255, 255, 255, 0.18));
   border-top: 3px solid var(--plan-accent);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--plan-accent) 22%, transparent) 0%,
+      rgba(255, 255, 255, 0.07) 58%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   font-size: 9px;
   line-height: 1.15;
   scroll-snap-align: start;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .plan-day.is-climate {
   border-style: dashed;
   border-top-style: solid;
-  opacity: 0.9;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow: none;
+  opacity: 0.88;
 }
 
 .plan-day.is-today {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.1));
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+@media (hover: hover) {
+  .plan-day:not(.is-climate):hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--plan-accent) 65%, rgba(255, 255, 255, 0.2));
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  }
 }
 
 .plan-day--plant { --plan-accent: #8ef0a3; }
@@ -939,42 +1027,74 @@ button {
 .plan-day--monitor { --plan-accent: #bfe9ff; }
 
 .plan-weekday {
+  color: var(--plan-accent);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  opacity: 0.8;
+  opacity: 0.95;
 }
 
 .plan-date {
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 1px 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .plan-icon .icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .plan-probability {
-  font-weight: 700;
-  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.16);
+  font-size: 8px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .plan-action {
+  max-width: 100%;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--plan-accent) 18%, transparent);
+  color: var(--plan-accent);
   font-size: 8px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.1;
   text-align: center;
-  opacity: 0.78;
+  overflow-wrap: anywhere;
 }
 
 .plan-note {
   margin-top: 8px;
-  font-size: 10px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.45;
   opacity: 0.78;
 }
 
 .plan-note--warn {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 224, 131, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 224, 131, 0.14);
   color: #ffe083;
   opacity: 1;
 }
@@ -1075,7 +1195,34 @@ button {
   }
 
   .plan-day {
-    padding: 5px 2px;
+    min-height: 84px;
+    gap: 2px;
+    padding: 6px 2px 5px;
+  }
+
+  .plan-weekday,
+  .plan-date {
+    font-size: 7px;
+  }
+
+  .plan-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .plan-icon .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .plan-probability {
+    min-width: 25px;
+    padding: 1px 4px;
+    font-size: 7px;
+  }
+
+  .plan-scroll-hint {
+    font-size: 9px;
   }
 }
 
