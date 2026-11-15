@@ -28,6 +28,8 @@ espero?**
 - **Porquê** — todos os sinais da decisão, chuva dos últimos 14 dias,
   climatologia histórica e previsão.
 - **Histórico** — totais mensais e anuais, origem dos dados e última atualização.
+- **Feedback** — respostas de um toque guardadas com o contexto da decisão;
+  resumo e exportação CSV disponíveis apenas pela CLI do servidor.
 - **Sobre** — fontes, metodologia, limitações e atribuição.
 - **PWA instalável** com cache offline do ecrã principal.
 - **Leitura em voz alta** (Web Speech API).
@@ -104,11 +106,23 @@ As variáveis estão documentadas em `.env.example`. As principais:
 | `GET` | `/api/decision` | Decisão atual completa (estado, razões, climatologia) |
 | `GET` | `/api/history?days=90` | Série diária recente (1 a 3650 dias) |
 | `GET` | `/api/climatology` | Totais mensais e anuais |
+| `POST` | `/feedback` | Regista feedback sobre a decisão apresentada |
 | `POST` | `/api/admin/ingest` | Lê `download-data/` e atualiza os dias IMERG |
 | `POST` | `/api/admin/train` | Treina o modelo com observações IMERG reais |
 
 Os endpoints `/api/admin/*` são locais; não são registados no runtime serverless
 da Vercel.
+
+O acesso ao resumo e à exportação de feedback é restrito à CLI do servidor:
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app run.py feedback-summary
+.\.venv\Scripts\python.exe -m flask --app run.py feedback-export --output feedback.csv
+```
+
+Uma repetição do mesmo envio (mesmo `submission_id`) é idempotente. Abrir uma
+nova página gera um identificador novo, permitindo registar uma resposta nova
+sem identificar o utilizador.
 
 ## Estrutura
 

@@ -131,4 +131,80 @@
       if (this.form) this.form.submit();
     });
   }
+
+  var contextLink = document.querySelector("[data-open-context]");
+  var contextDetails = document.getElementById("change-context");
+  if (contextLink && contextDetails) {
+    contextLink.addEventListener("click", function () {
+      contextDetails.open = true;
+      var select = contextDetails.querySelector("select");
+      if (select) {
+        window.setTimeout(function () {
+          select.focus();
+        }, 60);
+      }
+    });
+  }
+  if (contextDetails && window.location.hash === "#change-context") {
+    contextDetails.open = true;
+  }
+
+  // ---- One-tap feedback ----
+  var feedbackForm = document.querySelector("[data-feedback]");
+  if (feedbackForm && window.fetch) {
+    feedbackForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var button = event.submitter || document.activeElement;
+      var status = feedbackForm.querySelector("[data-feedback-status]");
+      var buttons = feedbackForm.querySelectorAll("button[name='choice']");
+      var payload = {};
+      var data = new FormData(feedbackForm);
+      data.forEach(function (value, key) {
+        payload[key] = value;
+      });
+      if (button && button.name === "choice") {
+        payload.choice = button.value;
+      }
+      if (!payload.choice) return;
+
+      for (var j = 0; j < buttons.length; j += 1) {
+        buttons[j].disabled = true;
+      }
+      if (status) {
+        status.classList.remove("is-ok", "is-error");
+        status.textContent = feedbackForm.getAttribute("data-sending") || "";
+      }
+
+      fetch(feedbackForm.action, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        credentials: "same-origin"
+      }).then(function (response) {
+        if (!response.ok) throw new Error("feedback");
+        return response.json();
+      }).then(function () {
+        var thanks = feedbackForm.getAttribute("data-thanks") || "";
+        if (status) {
+          status.classList.add("is-ok");
+          status.textContent = thanks;
+        }
+        if (button && button.name === "choice") {
+          button.setAttribute("aria-pressed", "true");
+        }
+        showToast(thanks);
+      }).catch(function () {
+        if (status) {
+          status.classList.add("is-error");
+          status.textContent = feedbackForm.getAttribute("data-error") || "";
+        }
+        for (var k = 0; k < buttons.length; k += 1) {
+          buttons[k].disabled = false;
+        }
+      });
+    });
+  }
 })();

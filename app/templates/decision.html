@@ -2,13 +2,17 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ t('nav.decision') }} &middot; {{ t('app.name') }}{% endblock %}
 
-{% block content %}
-<section class="hero">
-  <form class="selector-banner" method="get" action="{{ url_for('index') }}" aria-labelledby="selector-title">
-    <div class="selector-banner-head">
-      <span class="selector-banner-icon">{{ icon('leaf', 24) }}</span>
-      <p class="selector-title" id="selector-title">{{ t('selector.title') }}</p>
-    </div>
+{% macro context_selector(compact=false) -%}
+  <form class="{{ 'selector-form-body' if compact else 'selector-banner' }}"
+        method="get"
+        action="{{ url_for('index') }}"
+        {% if compact %}aria-label="{{ t('selector.title') }}"{% else %}aria-labelledby="selector-title"{% endif %}>
+    {% if not compact %}
+      <div class="selector-banner-head">
+        <span class="selector-banner-icon">{{ icon('leaf', 24) }}</span>
+        <p class="selector-title" id="selector-title">{{ t('selector.title') }}</p>
+      </div>
+    {% endif %}
 
     <div class="selector-fields">
       <label class="field">
@@ -38,10 +42,32 @@
       <button type="submit">{{ t('selector.apply') }}</button>
     </noscript>
   </form>
+{%- endmacro %}
+
+{% block content %}
+<section class="hero decision-first">
+  {% if not selection_supported %}
+    {{ context_selector() }}
+  {% endif %}
 
   {% if selection_supported %}
+    {% set share_text = t('decision.share_message').format(
+      region=t(regions[selected_region].label_key),
+      crop=t(crops[selected_crop].label_key),
+      headline=decision.headline,
+      recommendation=decision.recommendation,
+      url=request.url
+    ) %}
     {% include "_data_stale.html" %}
     <div class="decision-card state-{{ decision.state|lower }}" data-speech="{{ decision.speech }}">
+      <div class="decision-context">
+        <span class="decision-context-copy">
+          {{ icon('leaf', 15) }}
+          <span>{{ t('decision.context').format(region=t(regions[selected_region].label_key), crop=t(crops[selected_crop].label_key)) }}</span>
+        </span>
+        <a class="decision-context-change" href="#change-context" data-open-context>{{ t('decision.change') }}</a>
+      </div>
+
       <div class="decision-overview">
         <div class="decision-copy">
           <span class="decision-kicker">{{ icon(decision.icon, 18) }}{{ t('decision.title') }}</span>
@@ -60,6 +86,45 @@
               <strong>{{ decision.days_to_plant }}</strong> {{ t('common.days') }}
             </p>
           {% endif %}
+
+          <div class="decision-quick-actions">
+            <a class="share-whatsapp"
+               href="https://wa.me/?text={{ share_text|urlencode }}"
+               target="_blank"
+               rel="noopener">
+              {{ icon('share', 18) }}<span>{{ t('decision.share') }}</span>
+            </a>
+          </div>
+
+          <form class="feedback-card"
+                method="post"
+                action="{{ url_for('feedback') }}"
+                data-feedback
+                data-sending="{{ t('feedback.sending') }}"
+                data-thanks="{{ t('feedback.thanks') }}"
+                data-error="{{ t('feedback.error') }}">
+            <input type="hidden" name="submission_id" value="{{ feedback_submission_id }}">
+            <fieldset>
+              <legend>{{ t('feedback.title') }}</legend>
+              <div class="feedback-options">
+                <button type="submit" name="choice" value="planted">
+                  {{ icon('sprout', 18) }}<span>{{ t('feedback.planted') }}</span>
+                </button>
+                <button type="submit" name="choice" value="waited">
+                  {{ icon('clock', 18) }}<span>{{ t('feedback.waited') }}</span>
+                </button>
+                <button type="submit" name="choice" value="not_helpful">
+                  {{ icon('alert', 18) }}<span>{{ t('feedback.not_helpful') }}</span>
+                </button>
+              </div>
+            </fieldset>
+            <input type="hidden" name="state" value="{{ decision.state }}">
+            <input type="hidden" name="confidence" value="{{ decision.confidence }}">
+            <input type="hidden" name="model_version" value="{{ decision.model_version }}">
+            <input type="hidden" name="last_day" value="{{ decision.last_day }}">
+            <input type="hidden" name="reference_date" value="{{ decision.reference_date }}">
+            <p class="feedback-status" data-feedback-status role="status" aria-live="polite"></p>
+          </form>
         </div>
 
         <div class="decision-weather" aria-live="polite">
@@ -203,6 +268,18 @@
       <a class="link-more" href="{{ url_for('why') }}">{{ t('decision.why_link') }} &rarr;</a>
       <a class="link-more" href="{{ url_for('history') }}">{{ t('nav.history') }} &rarr;</a>
     </div>
+
+    <details class="selector-banner selector-banner--compact" id="change-context">
+      <summary class="selector-summary">
+        <span class="selector-banner-icon">{{ icon('leaf', 22) }}</span>
+        <span class="selector-summary-copy">
+          <strong>{{ t('selector.change_title') }}</strong>
+          <small>{{ t(regions[selected_region].label_key) }} &middot; {{ t(crops[selected_crop].label_key) }}</small>
+        </span>
+        <span class="selector-summary-chevron">{{ icon('chevron', 18) }}</span>
+      </summary>
+      {{ context_selector(compact=true) }}
+    </details>
   {% else %}
     <section class="panel selector-empty" role="status">
       <span class="selector-empty-icon">{{ icon('info', 28) }}</span>

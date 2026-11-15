@@ -71,6 +71,22 @@ as tabelas necessárias. Não copia o modelo treinado localmente; na Vercel a
 aplicação usa o fallback heurístico até existir um modelo preparado para esse
 runtime.
 
+### Preparar a tabela de feedback
+
+Antes de publicar a versão com feedback idempotente, aplica a atualização ao
+PostgreSQL persistente. Executa a partir de uma máquina de confiança, com
+`DATABASE_URL` apontado para a base de Preview ou Production:
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app run.py upgrade-feedback-schema
+```
+
+O comando cria a tabela de feedback se ainda não existir; caso contrário,
+adiciona a coluna de idempotência e o índice único sem apagar respostas
+anteriores. A coluna aceita `NULL` para preservar registos antigos; os novos
+envios recebem sempre um identificador. O acesso às respostas é feito pela CLI
+privada (`feedback-summary` e `feedback-export`), não por uma rota pública.
+
 ## 4. Deploy e verificação
 
 Faz push para o GitHub; a integração cria um Preview e publica Production após

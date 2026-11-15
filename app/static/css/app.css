@@ -481,7 +481,8 @@ button {
   border-color: var(--color-primary);
 }
 
-.selector-banner button {
+.selector-banner button,
+.selector-form-body button {
   min-height: 48px;
   padding: 0 var(--space-5);
   border: 0;
@@ -489,6 +490,79 @@ button {
   background: var(--color-primary);
   color: #fff;
   font-weight: 700;
+}
+
+.selector-banner--compact {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.selector-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+}
+
+.selector-summary::-webkit-details-marker {
+  display: none;
+}
+
+.selector-summary::marker {
+  content: "";
+}
+
+.selector-summary:focus-visible {
+  outline: 3px solid var(--color-ring);
+  outline-offset: -3px;
+}
+
+.selector-banner--compact .selector-banner-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.selector-summary-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.selector-summary-copy strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.selector-summary-copy small {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selector-summary-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  transition: transform 180ms ease;
+}
+
+.selector-banner[open] .selector-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.selector-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
 }
 
 .selector-empty {
@@ -631,6 +705,134 @@ button {
   max-width: 34ch;
 }
 
+.decision-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+.decision-context-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.decision-context-change {
+  color: #fff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  opacity: 0.82;
+}
+
+.decision-context-change:hover {
+  opacity: 1;
+}
+
+.decision-quick-actions {
+  display: flex;
+  margin-top: var(--space-3);
+}
+
+.share-whatsapp {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #25d366;
+  color: #0b2e13;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+.share-whatsapp:hover {
+  background: #5ce47f;
+}
+
+.feedback-card {
+  margin-top: var(--space-3);
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.13);
+}
+
+.feedback-card fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-card legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.feedback-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.feedback-options button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.feedback-options button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.feedback-options button:active {
+  transform: scale(0.98);
+}
+
+.feedback-options button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.feedback-options button[aria-pressed="true"] {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.feedback-status {
+  min-height: 1em;
+  margin: 6px 2px 0;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
 .decision-weather {
   min-width: 0;
   display: flex;
@@ -716,6 +918,15 @@ button {
 
   .decision-overview {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feedback-options {
+    grid-template-columns: 1fr;
+  }
+
+  .feedback-options button {
+    justify-content: flex-start;
+    padding-inline: 12px;
   }
 
   .decision-weather {

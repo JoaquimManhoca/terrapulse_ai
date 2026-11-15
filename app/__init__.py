@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import date
+from uuid import UUID, uuid4
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import (
     Flask,
     current_app,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -15,6 +18,7 @@ from flask import (
     session,
     url_for,
 )
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from .config import Config, _engine_options
 from .extensions import cors, db
@@ -36,6 +40,19 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "frame-ancestors 'none'",
     )
 )
+
+
+FEEDBACK_CHOICES = frozenset({"planted", "waited", "not_helpful"})
+DECISION_STATES = frozenset(
+    {"PLANT_NOW", "WAIT", "PLANT_IN_DAYS", "HIGH_RISK"}
+)
+
+
+def _iso_date(value: object) -> date | None:
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
 
 
 def _safe_referrer() -> str | None:
@@ -242,12 +259,108 @@ def create_app(config_object: type[Config] = Config) -> Flask:
         return render_template(
             "decision.html",
             decision=build_decision(lang=g.lang) if supported else None,
+            feedback_submission_id=str(uuid4()),
             regions=regions,
             crops=crops,
             selected_region=region,
             selected_crop=crop,
             selection_supported=supported,
         )
+
+    @app.post("/feedback")
+    def feedback():
+        from .models import DecisionFeedback
+
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        payload = payload or {}
+        wants_json = (
+            request.is_json
+            or request.accept_mimetypes.best == "application/json"
+        )
+        choice = str(payload.get("choice", "")).strip()
+        state = str(payload.get("state", "")).strip().upper()
+        try:
+            submission_id = str(UUID(str(payload.get("submission_id", ""))))
+        except (AttributeError, TypeError, ValueError):
+            submission_id = None
+
+        if (
+            choice not in FEEDBACK_CHOICES
+            or state not in DECISION_STATES
+            or submission_id is None
+        ):
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "invalid_feedback"}}
+                ), 400
+            return redirect(url_for("index"))
+
+        def feedback_response(record, status_code=201):
+            if wants_json:
+                return jsonify(
+                    {"status": "ok", "feedback": record.to_dict()}
+                ), status_code
+            return redirect(url_for("index", feedback=1))
+
+        try:
+            confidence = float(payload.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        confidence = min(1.0, max(0.0, confidence))
+
+        region, crop = _selection()
+        record = DecisionFeedback(
+            submission_id=submission_id,
+            decision_date=(
+                _iso_date(payload.get("reference_date")) or date.today()
+            ),
+            choice=choice,
+            state=state,
+            confidence=confidence,
+            model_version=(
+                str(payload.get("model_version", "")).strip()[:64] or None
+            ),
+            last_observation=_iso_date(payload.get("last_day")),
+            region=region,
+            crop=crop,
+            lang=g.lang,
+        )
+        try:
+            db.session.add(record)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            try:
+                duplicate = DecisionFeedback.query.filter_by(
+                    submission_id=submission_id
+                ).one_or_none()
+            except SQLAlchemyError:
+                current_app.logger.exception(
+                    "Unable to resolve a repeated feedback submission."
+                )
+                if wants_json:
+                    return jsonify(
+                        {"error": {"code": "feedback_unavailable"}}
+                    ), 503
+                return redirect(url_for("index"))
+            if duplicate is not None:
+                return feedback_response(duplicate, status_code=200)
+            current_app.logger.exception("Unable to save decision feedback.")
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "feedback_unavailable"}}
+                ), 503
+            return redirect(url_for("index"))
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("Unable to save decision feedback.")
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "feedback_unavailable"}}
+                ), 503
+            return redirect(url_for("index"))
+
+        return feedback_response(record)
 
     @app.route("/porque")
     def why():

@@ -10,14 +10,23 @@ def test_pages_render(client):
         assert b"TerraPulse AI" in response.data, path
 
 
-def test_decision_page_has_selector_and_no_details(client):
+def test_decision_page_is_decision_first_with_feedback_and_share(client):
     response = client.get("/")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert 'class="selector-banner"' in html
+    assert 'class="selector-banner selector-banner--compact"' in html
+    assert 'id="change-context"' in html
     assert 'name="region"' in html
     assert 'name="crop"' in html
     assert 'class="decision-card' in html
+    assert html.index('class="decision-card') < html.index('id="change-context"')
+    assert 'class="feedback-card"' in html
+    assert 'name="choice" value="planted"' in html
+    assert 'name="choice" value="waited"' in html
+    assert 'name="choice" value="not_helpful"' in html
+    assert 'name="submission_id"' in html
+    assert 'https://wa.me/?text=' in html
+    assert 'data-feedback' in html
     assert 'class="badge badge-real"' in html
     assert "Observações até:" in html
     assert 'class="decision-recommendation"' in html

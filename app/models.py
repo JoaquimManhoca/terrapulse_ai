@@ -31,6 +31,49 @@ class DailyObservation(db.Model):
         }
 
 
+class DecisionFeedback(db.Model):
+    __tablename__ = "decision_feedback"
+    __table_args__ = (
+        db.Index(
+            "uq_decision_feedback_submission_id",
+            "submission_id",
+            unique=True,
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.String(36), nullable=True)
+    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
+    decision_date = db.Column(db.Date, nullable=False, index=True)
+    choice = db.Column(db.String(24), nullable=False, index=True)
+    state = db.Column(db.String(32), nullable=False)
+    confidence = db.Column(db.Float, nullable=False)
+    model_version = db.Column(db.String(64), nullable=True)
+    last_observation = db.Column(db.Date, nullable=True)
+    region = db.Column(db.String(32), nullable=False)
+    crop = db.Column(db.String(32), nullable=False)
+    lang = db.Column(db.String(16), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "decision_date": self.decision_date.isoformat(),
+            "choice": self.choice,
+            "state": self.state,
+            "confidence": self.confidence,
+            "model_version": self.model_version,
+            "last_observation": (
+                self.last_observation.isoformat()
+                if self.last_observation
+                else None
+            ),
+            "region": self.region,
+            "crop": self.crop,
+            "lang": self.lang,
+        }
+
+
 class PredictionLog(db.Model):
     __tablename__ = "prediction_log"
 
