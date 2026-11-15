@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from flask import (
     Flask,
     current_app,
@@ -14,22 +16,47 @@ from flask import (
     url_for,
 )
 
-from .config import Config
+from .config import Config, _engine_options
 from .extensions import cors, db
 from .i18n import LANGUAGES, SUPPORTED_LANGUAGES, get_catalog, translate
+
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data:",
+        "connect-src 'self'",
+        "manifest-src 'self'",
+        "worker-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    )
+)
+
+
+def _safe_referrer() -> str | None:
+    """Only redirect back to this origin, never to an external referrer."""
+    referrer = request.referrer
+    if not referrer:
+        return None
+    parts = urlsplit(referrer)
+    if parts.scheme not in {"http", "https"}:
+        return None
+    if (parts.netloc or "").lower() != request.host.lower():
+        return None
+    return referrer
 
 
 def create_app(config_object: type[Config] = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_object)
-    if app.config["SQLALCHEMY_DATABASE_URI"].startswith(
-        "postgresql+psycopg://"
-    ):
-        engine_options = dict(app.config["SQLALCHEMY_ENGINE_OPTIONS"])
-        connect_args = dict(engine_options.get("connect_args", {}))
-        connect_args["prepare_threshold"] = None
-        engine_options["connect_args"] = connect_args
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = _engine_options(
+        app.config["SQLALCHEMY_DATABASE_URI"], app.config["IS_VERCEL"]
+    )
 
     if app.config["IS_VERCEL"]:
         if not app.config["SQLALCHEMY_DATABASE_URI"].startswith(
@@ -59,6 +86,20 @@ def create_app(config_object: type[Config] = Config) -> Flask:
     db.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
 
+    if app.config["IS_VERCEL"]:
+        from .services.training import active_model_info
+
+        with app.app_context():
+            model_info = active_model_info()
+        if model_info:
+            app.logger.info(
+                "Bundled onset model active: %s", model_info.get("version")
+            )
+        else:
+            app.logger.warning(
+                "No onset model bundled; the decision uses the heuristic."
+            )
+
     from .api import climate, decision as decision_api, health, series
 
     from .cli import register_cli
@@ -76,6 +117,10 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     @app.before_request
     def _set_language() -> None:
+        if request.path.startswith("/static/") or request.path == (
+            "/service-worker.js"
+        ):
+            return
         requested = request.args.get("lang")
         lang = requested or session.get("lang") or app.config["DEFAULT_LANGUAGE"]
         if lang not in SUPPORTED_LANGUAGES:
@@ -95,11 +140,38 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             "app_version": "0.2.0",
         }
 
+    @app.after_request
+    def _security_headers(response):
+        response.headers.setdefault(
+            "Content-Security-Policy", CONTENT_SECURITY_POLICY
+        )
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault(
+            "Referrer-Policy", "strict-origin-when-cross-origin"
+        )
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), geolocation=(), microphone=()",
+        )
+        if request.is_secure:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        if request.path.startswith("/static/"):
+            response.headers["Cache-Control"] = (
+                "public, max-age=86400, stale-while-revalidate=604800"
+            )
+        elif request.path == "/service-worker.js":
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     @app.route("/language/<lang_code>")
     def set_language(lang_code: str):
         if lang_code in SUPPORTED_LANGUAGES:
             session["lang"] = lang_code
-        return redirect(request.referrer or url_for("index"))
+        return redirect(_safe_referrer() or url_for("index"))
 
     @app.route("/service-worker.js")
     def service_worker():
@@ -228,6 +300,8 @@ def create_app(config_object: type[Config] = Config) -> Flask:
                 aria_label="Total de chuva por época chuvosa, 1998 a 2024",
                 y_max=sections["seasonal"]["y_max"],
                 label_step=2,
+                x_label="Época chuvosa",
+                y_label="Precipitação (mm)",
             )
             if sections["seasonal"]
             else "",
@@ -238,12 +312,16 @@ def create_app(config_object: type[Config] = Config) -> Flask:
                 aria_label="Total de chuva de novembro por época",
                 y_max=sections["november"]["y_max"],
                 label_step=2,
+                x_label="Ano",
+                y_label="Precipitação em novembro (mm)",
             )
             if sections["november"]
             else "",
             "climatology": charts.band_chart(
                 sections["climatology"],
                 aria_label="Climatologia mensal da época chuvosa",
+                x_label="Mês",
+                y_label="Precipitação mensal (mm)",
             )
             if sections["climatology"]
             else "",
@@ -251,18 +329,24 @@ def create_app(config_object: type[Config] = Config) -> Flask:
                 sections["onset"]["rows"],
                 aria_label="Dia do início efetivo da chuva por época",
                 median=sections["onset"]["median"],
+                x_label="Data de início",
+                y_label="Época chuvosa",
             )
             if sections["onset"] and sections["onset"]["median"] is not None
             else "",
             "comparison": charts.error_bar_chart(
                 sections["comparison"]["groups"],
                 aria_label="Comparação da média de chuva entre períodos",
+                x_label="Período",
+                y_label="Precipitação média (mm)",
             )
             if sections["comparison"]
             else "",
             "importances": charts.hbar_chart(
                 sections["model"]["importances"],
                 aria_label="Importância das variáveis no modelo Random Forest",
+                x_label="Importância relativa (%)",
+                y_label="Variável",
             )
             if sections["model"] and sections["model"]["importances"]
             else "",

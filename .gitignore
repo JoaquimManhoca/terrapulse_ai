@@ -24,6 +24,7 @@ data/models/*
 !data/interim/.gitkeep
 !data/processed/.gitkeep
 !data/models/.gitkeep
+!data/models/onset_rf.joblib
 data/harmony_ingest_status.json
 data/*.db
 data/*.db-*
@@ -37,6 +38,7 @@ Thumbs.db
 
 # Logs
 *.log
+*.log.*
 
 .vercel
 .env*

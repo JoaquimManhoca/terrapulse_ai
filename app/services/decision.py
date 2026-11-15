@@ -54,6 +54,7 @@ REASON_ICONS = {
     "onset_seen": "calendar",
     "onset_none": "sun",
     "ml_onset_prob": "spark",
+    "data_stale": "alert",
 }
 
 _RAIN_CHANCE_THRESHOLD_PCT = 50.0
@@ -172,6 +173,9 @@ def _empty_decision(lang: str) -> dict:
         "forecast": None,
         "last_updated": None,
         "last_day": None,
+        "data_age_days": None,
+        "data_stale": True,
+        "reference_date": _local_today().isoformat(),
         "season": None,
         "data_status": "empty",
         "model_version": "heuristic-v0",
@@ -181,7 +185,7 @@ def _empty_decision(lang: str) -> dict:
 
 def _forecast_summary(
     forecast: dict | None,
-    last_day: date,
+    reference_day: date,
     lang: str = "pt",
 ) -> dict | None:
     if not forecast:
@@ -189,7 +193,7 @@ def _forecast_summary(
     future = [
         row
         for row in forecast.get("rows", [])
-        if (row.get("date") or "") > last_day.isoformat()
+        if (row.get("date") or "") >= reference_day.isoformat()
     ]
     future = future[:14]
     rain_7d = sum((row.get("precip_mm") or 0.0) for row in future[:7])
@@ -202,12 +206,12 @@ def _forecast_summary(
             break
 
     daily = []
-    today = _local_today().isoformat()
+    reference = reference_day.isoformat()
     current_rows = sorted(
         (
             row
             for row in forecast.get("rows", [])
-            if row.get("date") and row["date"] >= today
+            if row.get("date") and row["date"] >= reference
         ),
         key=lambda row: row["date"],
     )
@@ -302,6 +306,9 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
 
     series = daily_series()
     last_day = series.index.max().date()
+    today = _local_today()
+    data_age_days = max(0, (today - last_day).days)
+    data_stale = data_age_days > Config.DATA_MAX_AGE_DAYS
 
     rain_7 = float(np.nansum(series.tail(7).to_numpy(dtype=float)))
     dry_streak = _dry_streak(series, Config.DECISION_DRY_DAY_MM)
@@ -343,12 +350,12 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
     )
 
     forecast = fetch_open_meteo() if forecast_enabled else None
-    forecast_info = _forecast_summary(forecast, last_day, lang)
+    forecast_info = _forecast_summary(forecast, today, lang)
 
     onset_prob, model_version_used = _model_onset_probability(frame)
 
     state, confidence, days_to_plant = _decide(
-        month=last_day.month,
+        month=today.month,
         rain_7=rain_7,
         dry_streak=dry_streak,
         current_onset=current_onset,
@@ -356,7 +363,14 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
         forecast_info=forecast_info,
         onset_prob=onset_prob,
     )
-    recommendation = translate(f"decision.action_{state.lower()}", lang)
+    if data_stale:
+        state = "WAIT"
+        confidence = round(min(confidence, 0.5), 2)
+        days_to_plant = None
+    recommendation = translate(
+        "decision.action_stale" if data_stale else f"decision.action_{state.lower()}",
+        lang,
+    )
     weather = (
         dict(forecast_info["daily"][0])
         if forecast_info and forecast_info["daily"]
@@ -366,6 +380,15 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
         weather["caption"] = f"{weather['weekday']}, {weather['date']}"
 
     reasons = []
+    if data_stale:
+        reasons.append(
+            _reason(
+                "data_stale",
+                translate("reason.data_stale", lang),
+                data_age_days,
+                translate("common.days", lang),
+            )
+        )
     if current_onset is not None:
         reasons.append(
             _reason(
@@ -443,13 +466,16 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
         "latest_onset": _season_label(max(onset_offsets)) if onset_offsets else None,
     }
 
-    if last_day.month >= Config.SEASON_START_MONTH:
-        season = f"{last_day.year}/{last_day.year + 1}"
+    if today.month >= Config.SEASON_START_MONTH:
+        season = f"{today.year}/{today.year + 1}"
     else:
-        season = f"{last_day.year - 1}/{last_day.year}"
+        season = f"{today.year - 1}/{today.year}"
 
-    headline = translate(f"state.{state.lower()}", lang)
-    summary = translate(f"state.{state.lower()}.sub", lang)
+    headline = translate("state.stale" if data_stale else f"state.{state.lower()}", lang)
+    summary = translate(
+        "state.stale.sub" if data_stale else f"state.{state.lower()}.sub",
+        lang,
+    )
     speech_parts = [
         f"{reason['label']} {reason['value']}{(' ' + reason['unit']) if reason['unit'] else ''}".strip()
         for reason in reasons[:3]
@@ -482,6 +508,9 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
         "forecast": forecast_info,
         "last_updated": last_day.strftime("%d/%m/%Y"),
         "last_day": last_day.isoformat(),
+        "data_age_days": data_age_days,
+        "data_stale": data_stale,
+        "reference_date": today.isoformat(),
         "season": season,
         "data_status": data_status(),
         "model_version": model_version_used or "heuristic-v0",

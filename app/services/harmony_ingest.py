@@ -14,8 +14,6 @@ onset classifier. Progress is exposed through ``harmony_ingest_status``.
 from __future__ import annotations
 
 import concurrent.futures
-import netrc
-import os
 import threading
 import time
 import traceback
@@ -23,12 +21,13 @@ from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import requests as _requests
 from flask import current_app
 from harmony import BBox, Client, Collection, Request
 
 from ..config import Config
 from ..extensions import db
+from .earthdata import collection_coverage as _cmr_collection_coverage
+from .earthdata import earthdata_client as _earthdata_client
 from .ingest import (
     FINAL_SOURCE,
     IngestedDay,
@@ -47,7 +46,6 @@ POLL_SECONDS = 15
 SEASON_TIMEOUT_SECONDS = 45 * 60
 SUBMIT_RETRIES = 3
 TERMINAL_STATES = {"successful", "failed", "canceled"}
-_CMR_SEARCH = "https://cmr.earthdata.nasa.gov/search/granules.json"
 
 _LOCK = threading.RLock()
 _DB_WRITE_LOCK = threading.Lock()
@@ -102,30 +100,6 @@ def harmony_ingest_status() -> dict:
     return status
 
 
-def _earthdata_client() -> Client:
-    token = os.environ.get("EARTHDATA_TOKEN") or Config.EARTHDATA_TOKEN
-    if token:
-        return Client(token=token)
-
-    netrc_path = os.environ.get("EARTHDATA_NETRC")
-    try:
-        credentials = netrc.netrc(netrc_path or None).authenticators(
-            "urs.earthdata.nasa.gov"
-        )
-    except (FileNotFoundError, netrc.NetrcParseError, OSError):
-        credentials = None
-
-    if credentials and credentials[0] and credentials[2]:
-        return Client(auth=(credentials[0], credentials[2]))
-
-    raise RuntimeError(
-        "Earthdata Login is not configured. Set EARTHDATA_TOKEN, or add an "
-        "Earthdata entry for urs.earthdata.nasa.gov in %USERPROFILE%\\.netrc. "
-        "If the file is elsewhere, set EARTHDATA_NETRC to its path. "
-        "Never put credentials in source code."
-    )
-
-
 def _collection_coverage() -> tuple[date, date] | None:
     """First/last granule dates of the collection, via CMR (cached).
 
@@ -135,34 +109,10 @@ def _collection_coverage() -> tuple[date, date] | None:
     cached = _STATE.get("collection_coverage")
     if cached:
         return date.fromisoformat(cached[0]), date.fromisoformat(cached[1])
-    try:
-        latest = _requests.get(
-            _CMR_SEARCH,
-            params={
-                "collection_concept_id": COLLECTION_ID,
-                "page_size": 1,
-                "sort_key": "-start_date",
-            },
-            timeout=60,
-        )
-        earliest = _requests.get(
-            _CMR_SEARCH,
-            params={
-                "collection_concept_id": COLLECTION_ID,
-                "page_size": 1,
-                "sort_key": "start_date",
-            },
-            timeout=60,
-        )
-        last_day = date.fromisoformat(
-            latest.json()["feed"]["entry"][0]["time_start"][:10]
-        )
-        first_day = date.fromisoformat(
-            earliest.json()["feed"]["entry"][0]["time_start"][:10]
-        )
-    except Exception:  # noqa: BLE001 - no clamp when CMR is unreachable
+    coverage = _cmr_collection_coverage(COLLECTION_ID)
+    if coverage is None:
         return None
-    coverage = (first_day, last_day)
+    first_day, last_day = coverage
     with _LOCK:
         _STATE["collection_coverage"] = [
             first_day.isoformat(),

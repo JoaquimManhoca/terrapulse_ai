@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 
 def test_health(client):
     response = client.get("/api/health")
@@ -25,12 +27,74 @@ def test_decision_contract(client):
     assert payload["probabilities"]["onset_21d"] is None
 
 
+def test_decision_blocks_stale_data(client, monkeypatch):
+    from app.services import decision as decision_service
+
+    monkeypatch.setattr(
+        decision_service, "_local_today", lambda: date(2026, 11, 14)
+    )
+
+    payload = client.get("/api/decision").get_json()
+
+    assert payload["data_stale"] is True
+    assert payload["data_age_days"] > 7
+    assert payload["state"] == "WAIT"
+    assert payload["days_to_plant"] is None
+    assert "dados antigos" in payload["recommendation"]
+    assert payload["reasons"][0]["code"] == "data_stale"
+
+
+def test_decision_accepts_fresh_data(client, monkeypatch):
+    from app.services import decision as decision_service
+
+    monkeypatch.setattr(
+        decision_service, "_local_today", lambda: date(2025, 1, 5)
+    )
+
+    payload = client.get("/api/decision").get_json()
+
+    assert payload["data_stale"] is False
+    assert all(reason["code"] != "data_stale" for reason in payload["reasons"])
+
+
+def test_forecast_summary_ignores_past_rows(monkeypatch):
+    from app.services import decision as decision_service
+
+    monkeypatch.setattr(
+        decision_service, "_local_today", lambda: date(2026, 11, 14)
+    )
+    forecast = {
+        "source": "test",
+        "rows": [
+            {"date": "2026-11-12", "weather_code": 61, "precip_mm": 30.0},
+            {"date": "2026-11-14", "weather_code": 61, "precip_mm": 2.0},
+            {"date": "2026-11-15", "weather_code": 61, "precip_mm": 1.0},
+        ],
+    }
+
+    summary = decision_service._forecast_summary(
+        forecast, date(2026, 11, 14), "pt"
+    )
+
+    assert summary["rain_7d"] == 3.0
+    assert [row["date"] for row in summary["daily"]] == [
+        "14/11",
+        "15/11",
+    ]
+
+
 def test_history_endpoint(client):
     response = client.get("/api/history?days=30")
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["days"] <= 30
     assert isinstance(payload["series"], list)
+
+
+def test_history_endpoint_rejects_non_integer_days(client):
+    response = client.get("/api/history?days=abc")
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_days"
 
 
 def test_climatology_endpoint(client):

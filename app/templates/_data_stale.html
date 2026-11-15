@@ -1,0 +1,10 @@
+{% from "_icons.html" import icon %}
+{% if decision.data_stale and decision.last_updated %}
+  <div class="notice notice-warn" role="status">
+    <div class="notice-head">
+      {{ icon('alert', 18) }}
+      <strong>{{ t('decision.stale_badge') }}</strong>
+    </div>
+    <p>{{ t('decision.stale_notice').format(date=decision.last_updated, days=decision.data_age_days) }}</p>
+  </div>
+{% endif %}

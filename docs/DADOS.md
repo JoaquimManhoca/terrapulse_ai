@@ -37,7 +37,8 @@ Notas operacionais:
   2026, o IMERG Final V07 em `C2723754864` vai de 1998-01-01 a 2025-09-30,
   pelo que as épocas 1998–2024 (27 épocas) são ingiríveis. A época em curso
   (2025/26) não está ainda no IMERG Final; para operação recente use a
-  ingestão local de IMERG Early (secção 1) ou aguarde a publicação pela NASA.
+  atualização incremental de IMERG Early (secção 9) ou aguarde a publicação
+  pela NASA.
 - Só são pedidas épocas completas (1 out → 31 mar) com janelas de suporte
   (29 dias antes, 21 dias depois) dentro do intervalo limitado.
 - Até 8 jobs Harmony correm em paralelo; cada época pode demorar vários
@@ -73,17 +74,10 @@ necessários para os totais mensais/anuais do ecrã Histórico.
 
 ### Estado atual da pasta
 
-Já estão ingeridos **17 dias**: 11/12/2025, 14–16/12/2025, 20–31/12/2025 e
-01/01/2026. Nesse intervalo faltam 12/12, 13/12, 17/12, 18/12 e 19/12. Para os
-completar:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\list_imerg_urls.py `
-  --start 2025-12-12 --end 2025-12-19 --out urls-gap.txt
-```
-
-Depois descarregue com o processo da Opção B e volte a correr a ingestão; os
-dias já existentes são atualizados sem criar duplicados.
+Para completar automaticamente todos os dias em falta, incluindo a época em
+curso, use a atualização incremental da secção 9. Os métodos manuais abaixo
+continuam válidos para lotes controlados; os dias já existentes são atualizados
+sem criar duplicados.
 
 ## 2. Pré-requisitos
 
@@ -302,4 +296,57 @@ script exige pelo menos cinco épocas completas e só inclui dados IMERG; época
 com dias em falta são excluídas. O alvo é um *proxy* de início eficaz das
 chuvas, derivado da regra agronómica de onset existente — não representa sucesso
 da sementeira nem produtividade observada.
+
+## 9. Atualização incremental e agendamento
+
+O comando abaixo descarrega o **IMERG Early Daily** em falta através do Harmony,
+corta os dados para a bbox de Manica no servidor, grava no SQLite local,
+retreina o modelo e sincroniza as observações reais com o PostgreSQL/Supabase
+configurado em `DATABASE_URL`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\update_data.py --retrain
+```
+
+Por omissão começa no dia seguinte à última observação local e termina
+ontem. Para um intervalo explícito:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\update_data.py `
+  --start 2025-10-01 --end 2026-11-13 --retrain
+```
+
+Opções úteis:
+
+- `--no-sync` — atualiza só o SQLite, sem escrever no Supabase.
+- `--dry-run` — mostra o intervalo e termina.
+- `--chunk-days 31` — dias por job Harmony (por omissão 31).
+- `--sqlite data\terrapulse.db` — base local a atualizar.
+
+Garantias:
+
+- Observações `imerg_final_daily` existentes **nunca** são substituídas por
+  Early.
+- O intervalo é limitado à cobertura real da coleção Early consultada via CMR.
+- A sincronização é idempotente e remove apenas linhas não-IMERG do destino.
+- Se não houver dados suficientes para treinar, o modelo anterior é mantido e o
+  aviso é registado.
+
+Para agendar diariamente no Windows Task Scheduler:
+
+```powershell
+$action = New-ScheduledTaskAction `
+  -Execute "powershell.exe" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$PWD\scripts\update_data.ps1`" --retrain" `
+  -WorkingDirectory $PWD
+
+Register-ScheduledTask `
+  -TaskName "TerraPulse IMERG Update" `
+  -Action $action `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 06:00) `
+  -Description "Atualiza IMERG, retreina o modelo e sincroniza o Supabase."
+```
+
+O wrapper escreve o registo em `data\update_data.log`. Confirme o resultado em
+`/api/health` e na data da última observação mostrada na aplicação.
 

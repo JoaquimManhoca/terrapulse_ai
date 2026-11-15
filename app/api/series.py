@@ -17,7 +17,20 @@ bp = Blueprint("series", __name__)
 
 @bp.get("/history")
 def history():
-    limit = min(max(int(request.args.get("days", 90)), 1), 3650)
+    try:
+        limit = min(max(int(request.args.get("days", 90)), 1), 3650)
+    except (TypeError, ValueError):
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": "invalid_days",
+                        "message": "The 'days' parameter must be an integer.",
+                    }
+                }
+            ),
+            400,
+        )
     series = daily_series()
     tail = series.tail(limit)
     return jsonify(

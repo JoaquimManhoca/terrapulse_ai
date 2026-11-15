@@ -13,7 +13,6 @@ data/*.db-*
 data/raw/
 data/interim/
 data/processed/
-data/models/
 tests/
 scripts/
 docs/

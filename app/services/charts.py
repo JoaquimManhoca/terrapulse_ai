@@ -11,7 +11,7 @@ from __future__ import annotations
 from html import escape
 from xml.sax.saxutils import quoteattr
 
-PADDING = {"top": 14, "right": 16, "bottom": 30, "left": 44}
+PADDING = {"top": 14, "right": 16, "bottom": 48, "left": 66}
 
 
 def _axes(width: int, height: int, y_max: float) -> tuple[float, float]:
@@ -51,6 +51,29 @@ def _grid(width: int, height: int, y_max: float, steps: int = 4) -> list[str]:
     return parts
 
 
+def _axis_titles(
+    width: int,
+    height: int,
+    x_label: str,
+    y_label: str,
+    x0: float,
+    inner_w: float,
+    inner_h: float,
+) -> list[str]:
+    parts = []
+    if y_label:
+        cy = PADDING["top"] + inner_h / 2
+        parts.append(
+            f'<text x="14" y="{cy:.1f}" class="chart-axis-label" text-anchor="middle" transform="rotate(-90 14 {cy:.1f})">{escape(y_label)}</text>'
+        )
+    if x_label:
+        cx = x0 + inner_w / 2
+        parts.append(
+            f'<text x="{cx:.1f}" y="{height - 6}" class="chart-axis-label" text-anchor="middle">{escape(x_label)}</text>'
+        )
+    return parts
+
+
 def bar_chart(
     bars: list[dict],
     width: int = 720,
@@ -60,6 +83,8 @@ def bar_chart(
     line: list[tuple[float, float]] | None = None,
     line_label: str = "",
     label_step: int = 1,
+    x_label: str = "",
+    y_label: str = "",
 ) -> str:
     """Vertical bar chart with an optional overlay line.
 
@@ -70,7 +95,7 @@ def bar_chart(
         return ""
     values = [max(0.0, float(b["value"])) for b in bars]
     peak = y_max if y_max is not None else max(values) * 1.08 or 1.0
-    inner_w, _ = _axes(width, height, peak)
+    inner_w, inner_h = _axes(width, height, peak)
     to_y, _ = _y_scale(height, peak)
 
     x0 = PADDING["left"]
@@ -93,7 +118,7 @@ def bar_chart(
         )
         if index % label_step == 0:
             parts.append(
-                f'<text x="{cx:.1f}" y="{height - 10}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(bar.get("label") or ""))}</text>'
+                f'<text x="{cx:.1f}" y="{height - PADDING["bottom"] + 16}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(bar.get("label") or ""))}</text>'
             )
 
     if line:
@@ -103,6 +128,7 @@ def bar_chart(
         parts.append(
             f'<polyline points="{points}" class="chart-line" fill="none"><title>{escape(line_label)}</title></polyline>'
         )
+    parts.extend(_axis_titles(width, height, x_label, y_label, x0, inner_w, inner_h))
     parts.append("</svg>")
     return "".join(parts)
 
@@ -113,6 +139,8 @@ def band_chart(
     height: int = 280,
     aria_label: str = "",
     y_max: float | None = None,
+    x_label: str = "",
+    y_label: str = "",
 ) -> str:
     """Monthly climatology: p10-p90 band with median marker per month.
 
@@ -123,7 +151,7 @@ def band_chart(
     medians = [float(b["median"]) for b in bands]
     peaks = [float(b["p90"]) for b in bands] + [float(b["p10"]) for b in bands]
     peak = y_max if y_max is not None else max(peaks) * 1.1 or 1.0
-    inner_w, _ = _axes(width, height, peak)
+    inner_w, inner_h = _axes(width, height, peak)
     to_y, _ = _y_scale(height, peak)
 
     x0 = PADDING["left"]
@@ -145,9 +173,10 @@ def band_chart(
             f'<rect x="{x:.1f}" y="{y_hi:.1f}" width="{band_w:.1f}" height="{max(1.0, y_lo - y_hi):.1f}" rx="4" class="chart-band"/>'
             f'<line x1="{x:.1f}" y1="{y_med:.1f}" x2="{x + band_w:.1f}" y2="{y_med:.1f}" class="chart-med"/>'
             f'<text x="{cx:.1f}" y="{y_med - 6:.1f}" class="chart-value" text-anchor="middle">{escape(str(band.get("label") or ""))}</text>'
-            f'<text x="{cx:.1f}" y="{height - 10}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(band.get("tick") or ""))}</text>'
+            f'<text x="{cx:.1f}" y="{height - PADDING["bottom"] + 16}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(band.get("tick") or ""))}</text>'
             f"</g>"
         )
+    parts.extend(_axis_titles(width, height, x_label, y_label, x0, inner_w, inner_h))
     parts.append("</svg>")
     return "".join(parts)
 
@@ -157,6 +186,8 @@ def error_bar_chart(
     width: int = 720,
     height: int = 280,
     aria_label: str = "",
+    x_label: str = "",
+    y_label: str = "",
 ) -> str:
     """Mean comparison with 95% CI whiskers.
 
@@ -166,7 +197,7 @@ def error_bar_chart(
         return ""
     highs = [float(g["ci_high"]) for g in groups]
     peak = max(highs) * 1.15 or 1.0
-    inner_w, _ = _axes(width, height, peak)
+    inner_w, inner_h = _axes(width, height, peak)
     to_y, _ = _y_scale(height, peak)
 
     x0 = PADDING["left"]
@@ -192,9 +223,10 @@ def error_bar_chart(
             f'<line x1="{cx - 8:.1f}" y1="{y_hi:.1f}" x2="{cx + 8:.1f}" y2="{y_hi:.1f}" class="chart-whisker"/>'
             f'<line x1="{cx - 8:.1f}" y1="{y_lo:.1f}" x2="{cx + 8:.1f}" y2="{y_lo:.1f}" class="chart-whisker"/>'
             f'<text x="{cx:.1f}" y="{y_mean - 10:.1f}" class="chart-value" text-anchor="middle">{escape(str(group.get("label") or ""))}</text>'
-            f'<text x="{cx:.1f}" y="{height - 10}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(group.get("tick") or ""))}</text>'
+            f'<text x="{cx:.1f}" y="{height - PADDING["bottom"] + 16}" class="chart-tick chart-tick-x" text-anchor="middle">{escape(str(group.get("tick") or ""))}</text>'
             f"</g>"
         )
+    parts.extend(_axis_titles(width, height, x_label, y_label, x0, inner_w, inner_h))
     parts.append("</svg>")
     return "".join(parts)
 
@@ -206,6 +238,8 @@ def strip_chart(
     aria_label: str = "",
     axis_max: float | None = None,
     median: float | None = None,
+    x_label: str = "",
+    y_label: str = "",
 ) -> str:
     """Horizontal dot strip per row (e.g. onset day-of-season per season).
 
@@ -215,7 +249,7 @@ def strip_chart(
     if not rows:
         return ""
     peak = axis_max if axis_max is not None else (max(values) * 1.05 if values else 1.0)
-    inner_w, _ = _axes(width, height, peak)
+    inner_w, inner_h = _axes(width, height, peak)
 
     row_h = (height - PADDING["bottom"] - PADDING["top"]) / max(1, len(rows))
     parts = [
@@ -256,6 +290,17 @@ def strip_chart(
         parts.append(
             f'<g><title>{escape(str(row.get("title") or ""))}</title><circle cx="{cx:.1f}" cy="{cy:.1f}" r="5" class="{cls}"/></g>'
         )
+    parts.extend(
+        _axis_titles(
+            width,
+            height,
+            x_label,
+            y_label,
+            PADDING["left"],
+            inner_w,
+            inner_h,
+        )
+    )
     parts.append("</svg>")
     return "".join(parts)
 
@@ -265,17 +310,20 @@ def hbar_chart(
     width: int = 720,
     height: int = 300,
     aria_label: str = "",
+    x_label: str = "",
+    y_label: str = "",
 ) -> str:
     """Horizontal bars (feature importances). Each item: {"label", "pct", "title"}."""
     if not items:
         return ""
     peak = max(float(i["pct"]) for i in items) * 1.05 or 1.0
-    row_h = (height - PADDING["bottom"]) / len(items)
+    row_h = (height - PADDING["bottom"] - PADDING["top"]) / len(items)
     label_w = 150
     parts = [
         f'<svg viewBox="0 0 {width} {height}" class="chart" role="img" aria-label={quoteattr(aria_label)} preserveAspectRatio="xMidYMid meet">'
     ]
     inner_w = width - label_w - PADDING["right"]
+    inner_h = height - PADDING["bottom"] - PADDING["top"]
     for index, item in enumerate(items):
         cy = PADDING["top"] + row_h * (index + 0.5)
         bar_w = inner_w * float(item["pct"]) / peak
@@ -286,6 +334,9 @@ def hbar_chart(
             f'<text x="{label_w + bar_w + 6:.1f}" y="{cy + 4:.1f}" class="chart-value">{item["pct"]:.0f}%</text>'
             f"</g>"
         )
+    parts.extend(
+        _axis_titles(width, height, x_label, y_label, label_w, inner_w, inner_h)
+    )
     parts.append("</svg>")
     return "".join(parts)
 

@@ -18,14 +18,18 @@
   <section class="panel">
     <h2>{{ t('history.monthly_title') }}</h2>
     <div class="bar-chart-wrap">
-      <div class="bar-chart" role="img" aria-label="{{ t('history.monthly_title') }}">
-        {% for month in monthly %}
-          <div class="bar" title="{{ month.month }}: {{ month.precip_mm }} {{ t('common.mm') }}">
-            <span class="bar-fill" style="height: {{ month.height }}%"></span>
-            <span class="bar-label">{{ month.label }}</span>
-            <span class="bar-value">{{ month.precip_mm if month.precip_mm is not none else '—' }}</span>
-          </div>
-        {% endfor %}
+      <div class="bar-chart-figure">
+        <span class="axis-caption axis-caption-y">{{ t('history.rain') }} ({{ t('common.mm') }})</span>
+        <div class="bar-chart" role="img" aria-label="{{ t('history.monthly_title') }}">
+          {% for month in monthly %}
+            <div class="bar" title="{{ month.month }}: {{ month.precip_mm }} {{ t('common.mm') }}">
+              <span class="bar-fill" style="height: {{ month.height }}%"></span>
+              <span class="bar-label">{{ month.label }}</span>
+              <span class="bar-value">{{ month.precip_mm if month.precip_mm is not none else '—' }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        <span class="axis-caption axis-caption-x">{{ t('history.month') }}</span>
       </div>
     </div>
   </section>
@@ -50,14 +54,18 @@
             <span class="season-chevron" aria-hidden="true">{{ icon('chevron', 18) }}</span>
           </summary>
           <div class="season-months">
-            <div class="bar-chart bar-chart-mini" role="img" aria-label="{{ season.label }} · {{ t('history.monthly_detail') }}">
-              {% for month in season.months %}
-                <div class="bar" title="{{ season.label }} · {{ month.label }}: {{ month.total_mm }} {{ t('common.mm') }}">
-                  <span class="bar-fill bar-fill-alt" style="height: {{ month.height }}%"></span>
-                  <span class="bar-label">{{ month.label }}</span>
-                  <span class="bar-value">{{ month.total_mm }}</span>
-                </div>
-              {% endfor %}
+            <div class="bar-chart-figure">
+              <span class="axis-caption axis-caption-y">{{ t('history.rain') }} ({{ t('common.mm') }})</span>
+              <div class="bar-chart bar-chart-mini" role="img" aria-label="{{ season.label }} · {{ t('history.monthly_detail') }}">
+                {% for month in season.months %}
+                  <div class="bar" title="{{ season.label }} · {{ month.label }}: {{ month.total_mm }} {{ t('common.mm') }}">
+                    <span class="bar-fill bar-fill-alt" style="height: {{ month.height }}%"></span>
+                    <span class="bar-label">{{ month.label }}</span>
+                    <span class="bar-value">{{ month.total_mm }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+              <span class="axis-caption axis-caption-x">{{ t('history.month') }}</span>
             </div>
           </div>
         </details>

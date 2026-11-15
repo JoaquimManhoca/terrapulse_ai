@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy.pool import NullPool
 
 from app import create_app
 from app.config import Config, _database_uri, _engine_options
@@ -23,15 +22,18 @@ def test_postgres_urls_use_psycopg_and_disable_prepared_statements():
     uri = _database_uri("postgresql://user:pass@host/db?sslmode=require")
 
     assert uri == "postgresql+psycopg://user:pass@host/db?sslmode=require"
-    assert _engine_options(uri, is_vercel=True) == {
-        "connect_args": {"prepare_threshold": None},
-        "poolclass": NullPool,
-    }
-    assert _engine_options(uri, is_vercel=False) == {
-        "connect_args": {"prepare_threshold": None},
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-    }
+    vercel = _engine_options(uri, is_vercel=True)
+    assert vercel["connect_args"] == {"prepare_threshold": None}
+    assert vercel["pool_pre_ping"] is True
+    assert vercel["pool_recycle"] == 300
+    assert vercel["pool_size"] == 2
+    assert vercel["max_overflow"] == 3
+    assert "poolclass" not in vercel
+
+    local = _engine_options(uri, is_vercel=False)
+    assert local["pool_size"] == 5
+    assert local["max_overflow"] == 5
+    assert "poolclass" not in local
 
 
 def test_supabase_direct_url_forces_ssl(monkeypatch):

@@ -103,12 +103,51 @@ def test_decision_page_renders_selectable_daily_weather(client, app, monkeypatch
     assert 'data-probability="5"' in html
 
 
+def test_security_headers_are_present(client):
+    response = client.get("/")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert (
+        response.headers["Referrer-Policy"]
+        == "strict-origin-when-cross-origin"
+    )
+    policy = response.headers["Content-Security-Policy"]
+    assert "default-src 'self'" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert "https://fonts.googleapis.com" in policy
+
+
+def test_language_switch_does_not_redirect_offsite(client):
+    response = client.get(
+        "/language/chitewe",
+        headers={"Referer": "https://evil.example/phishing"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+
+
+def test_language_switch_returns_to_same_origin(client):
+    response = client.get(
+        "/language/chitewe",
+        headers={"Referer": "http://localhost/porque"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/porque")
+
+
 def test_manifest_and_service_worker(client):
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert b"TerraPulse" in manifest.data
+    assert "max-age=86400" in manifest.headers["Cache-Control"]
 
     worker = client.get("/service-worker.js")
     assert worker.status_code == 200
     assert worker.headers.get("Service-Worker-Allowed") == "/"
+    assert worker.headers["Cache-Control"] == "no-cache"
     assert b"CACHE" in worker.data

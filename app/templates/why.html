@@ -15,6 +15,7 @@
     {% endif %}
     <span class="model-chip">{{ icon('spark', 14) }} {{ decision.model_version }}</span>
   </div>
+  {% include "_data_stale.html" %}
 
   <div class="panel-grid">
     <section class="panel">
@@ -38,10 +39,14 @@
     {% if recent %}
     <section class="panel">
       <h2>{{ t('history.rain') }} &middot; {{ t('common.last_30_days') }}</h2>
-      <div class="sparkline" aria-hidden="true">
-        {% for day in recent %}
-          <span class="spark-bar" style="height: {{ day.height }}%" title="{{ day.label }}: {{ day.precip_mm }} {{ t('common.mm') }}"></span>
-        {% endfor %}
+      <div class="sparkline-figure">
+        <span class="axis-caption axis-caption-y">{{ t('history.rain') }} ({{ t('common.mm') }})</span>
+        <div class="sparkline" role="img" aria-label="{{ t('why.rain_title') }} · {{ t('common.last_30_days') }}">
+          {% for day in recent %}
+            <span class="spark-bar" style="height: {{ day.height }}%" title="{{ day.label }}: {{ day.precip_mm }} {{ t('common.mm') }}"></span>
+          {% endfor %}
+        </div>
+        <span class="axis-caption axis-caption-x">{{ t('common.days') }}</span>
       </div>
       <p class="panel-note">{{ t('why.rain_window_note') }}</p>
     </section>

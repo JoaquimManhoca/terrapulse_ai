@@ -8,7 +8,6 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
-from sqlalchemy.pool import NullPool
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -64,15 +63,23 @@ def _database_uri(value: str | None) -> str:
 def _engine_options(database_uri: str, is_vercel: bool) -> dict:
     """Engine options tuned for a long-lived process or a serverless function."""
     options: dict = {}
-    if database_uri.startswith("postgresql+psycopg://"):
-        options["connect_args"] = {"prepare_threshold": None}
-    if is_vercel:
-        # Functions are short-lived and scale horizontally; a shared pool is
-        # wasted and can exhaust connections (or time out under concurrency).
-        options["poolclass"] = NullPool
-    else:
-        options["pool_pre_ping"] = True
-        options["pool_recycle"] = 300
+    if not database_uri.startswith("postgresql+psycopg://"):
+        return options
+
+    options["connect_args"] = {"prepare_threshold": None}
+    # Reuse warm TLS connections. The transaction pooler multiplexes them, so
+    # a few connections per instance are enough even under Fluid concurrency.
+    options["pool_pre_ping"] = True
+    options["pool_recycle"] = 300
+    options["pool_size"] = int(
+        os.getenv("DB_POOL_SIZE", "2" if is_vercel else "5")
+    )
+    options["max_overflow"] = int(
+        os.getenv("DB_MAX_OVERFLOW", "3" if is_vercel else "5")
+    )
+    options["pool_timeout"] = int(
+        os.getenv("DB_POOL_TIMEOUT", "10" if is_vercel else "30")
+    )
     return options
 
 
@@ -92,10 +99,8 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = _database_uri(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = (
-        {"poolclass": NullPool}
-        if IS_VERCEL_DEPLOYMENT
-        else {"pool_pre_ping": True, "pool_recycle": 300}
+    SQLALCHEMY_ENGINE_OPTIONS = _engine_options(
+        SQLALCHEMY_DATABASE_URI, IS_VERCEL_DEPLOYMENT
     )
 
     SESSION_COOKIE_HTTPONLY = True
@@ -125,6 +130,8 @@ class Config:
         default=not IS_VERCEL_DEPLOYMENT,
     )
     FORECAST_ENABLED = _as_bool(os.getenv("FORECAST_ENABLED"), default=True)
+    # Older observations must never drive a "plant now" recommendation.
+    DATA_MAX_AGE_DAYS = int(os.getenv("DATA_MAX_AGE_DAYS", "7"))
 
     # NASA Earthdata (Harmony ingestion). Never put credentials in source:
     # prefer EARTHDATA_TOKEN or a .netrc entry for urs.earthdata.nasa.gov.

@@ -40,6 +40,7 @@
   </form>
 
   {% if selection_supported %}
+    {% include "_data_stale.html" %}
     <div class="decision-card state-{{ decision.state|lower }}" data-speech="{{ decision.speech }}">
       <div class="decision-overview">
         <div class="decision-copy">
