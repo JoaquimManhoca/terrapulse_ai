@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
+from contextlib import nullcontext
+
 import pytest
 
 from app import create_app
 from app.config import Config, _database_uri, _engine_options
 from app.extensions import db
-from build_vercel import build_public_assets
+from build_vercel import build_public_assets, train_model_for_vercel
 
 
 def test_vercel_rejects_ephemeral_sqlite():
@@ -112,3 +115,63 @@ def test_vercel_static_build_copies_public_assets(tmp_path):
     assert (output / "static" / "css" / "app.css").is_file()
     assert (output / "static" / "manifest.webmanifest").is_file()
     assert (output / "service-worker.js").is_file()
+
+
+def test_vercel_function_explicitly_bundles_the_model():
+    config = json.loads((Config.DATA_DIR.parent / "vercel.json").read_text())
+
+    assert (
+        config["functions"]["index.py"]["includeFiles"]
+        == "data/models/onset_rf.joblib"
+    )
+
+
+def test_vercel_build_retrains_model_from_database(monkeypatch, capsys):
+    import app
+    from app.services import training
+
+    class BuildApp:
+        def app_context(self):
+            return nullcontext()
+
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("TRAIN_MODEL_AT_BUILD", "true")
+    monkeypatch.setattr(app, "create_app", lambda: BuildApp())
+    monkeypatch.setattr(
+        training,
+        "train_and_persist",
+        lambda: {
+            "version": "onset-rf-v1",
+            "data_status": "real",
+            "splits": {
+                "train": {"rows": 60},
+                "validation": {"rows": 20},
+                "test": {"rows": 20},
+            },
+        },
+    )
+
+    train_model_for_vercel()
+
+    assert "Trained onset-rf-v1 from 100 complete-season examples." in capsys.readouterr().out
+
+
+def test_vercel_build_can_disable_retraining_and_uses_real_model(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("TRAIN_MODEL_AT_BUILD", "false")
+
+    train_model_for_vercel()
+
+
+def test_vercel_build_uses_committed_model_by_default(monkeypatch):
+    import app
+
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("TRAIN_MODEL_AT_BUILD", raising=False)
+    monkeypatch.setattr(
+        app,
+        "create_app",
+        lambda: pytest.fail("Default Vercel build must not retrain the model."),
+    )
+
+    train_model_for_vercel()

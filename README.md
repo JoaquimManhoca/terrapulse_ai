@@ -29,7 +29,8 @@ espero?**
   climatologia histórica e previsão.
 - **Histórico** — totais mensais e anuais, origem dos dados e última atualização.
 - **Feedback** — respostas de um toque guardadas com o contexto da decisão;
-  resumo e exportação CSV disponíveis apenas pela CLI do servidor.
+  após 21 dias, quem indicou que plantou pode reportar o resultado sem fornecer
+  nome ou GPS. Resumo, exportação CSV e contagem para avaliação ficam na CLI.
 - **Sobre** — fontes, metodologia, limitações e atribuição.
 - **PWA instalável** com cache offline do ecrã principal.
 - **Leitura em voz alta** (Web Speech API).
@@ -57,7 +58,8 @@ Carregar grânulos reais IMERG (`.nc4`) colocados em `download-data/`:
 
 A ingestão é idempotente por dia e substitui os registos desse dia pela
 observação IMERG mais recente. Dias sem ficheiro permanecem sem observação.
-Também está disponível em `POST /api/admin/ingest`.
+Também está disponível em `POST /api/admin/ingest` (requer o cabeçalho
+`X-Admin-Token`, ver [Configuração](#configuração)).
 
 > **Espaço em disco:** cada grânulo global ocupa ~29 MB (~10 GB por ano). Com
 > ~16 GB livres em `E:`, descarregue por lotes e ingira antes de apagar, ou use
@@ -87,7 +89,11 @@ As variáveis estão documentadas em `.env.example`. As principais:
 | `DATABASE_URL` | SQLite local | PostgreSQL persistente obrigatório na Vercel |
 | `DEFAULT_REGION` | `manica` | Cidade inicial e fallback do seletor |
 | `DEFAULT_CROP` | `milho` | Cultura inicial e fallback do seletor |
+| `ADMIN_TOKEN` | (vazio) | Segredo partilhado dos endpoints `/api/admin/*`; sem ele ficam fechados (503) |
+| `FEEDBACK_RATE_LIMIT` | `30` | Máximo de submissões de feedback por IP na janela |
+| `FEEDBACK_RATE_WINDOW` | `60` | Janela (segundos) do limite de feedback |
 | `AUTO_TRAIN_MODEL` | `true` local / `false` Vercel | Treina apenas com IMERG real, quando há dados suficientes |
+| `TRAIN_MODEL_AT_BUILD` | `false` na Vercel | Usa o artefacto real versionado; ativa treino no build apenas numa atualização planeada |
 | `FORECAST_ENABLED` | `true` | Ativa a previsão Open-Meteo |
 | `IMERG_DIR` | `<projeto>/download-data` | Pasta com os grânulos IMERG |
 | `IMERG_PATTERN` | `*.nc4` | Padrão dos ficheiros a ingerir |
@@ -107,22 +113,35 @@ As variáveis estão documentadas em `.env.example`. As principais:
 | `GET` | `/api/history?days=90` | Série diária recente (1 a 3650 dias) |
 | `GET` | `/api/climatology` | Totais mensais e anuais |
 | `POST` | `/feedback` | Regista feedback sobre a decisão apresentada |
+| `POST` | `/feedback/outcome` | Regista um resultado de campo após o prazo de 21 dias |
 | `POST` | `/api/admin/ingest` | Lê `download-data/` e atualiza os dias IMERG |
 | `POST` | `/api/admin/train` | Treina o modelo com observações IMERG reais |
 
 Os endpoints `/api/admin/*` são locais; não são registados no runtime serverless
-da Vercel.
+da Vercel. Exigem o segredo `ADMIN_TOKEN` no cabeçalho `X-Admin-Token` (sem ele
+respondem `401`; se `ADMIN_TOKEN` não estiver configurado, respondem `503`):
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/admin/ingest -H "X-Admin-Token: $env:ADMIN_TOKEN"
+```
+
+Os `POST /feedback` e `/feedback/outcome` validam um token CSRF (emitido com a
+página e enviado no campo `csrf_token` ou no cabeçalho `X-CSRF-Token`) e são
+limitados por IP conforme `FEEDBACK_RATE_LIMIT`/`FEEDBACK_RATE_WINDOW`.
 
 O acesso ao resumo e à exportação de feedback é restrito à CLI do servidor:
 
 ```powershell
 .\.venv\Scripts\python.exe -m flask --app run.py feedback-summary
 .\.venv\Scripts\python.exe -m flask --app run.py feedback-export --output feedback.csv
+.\.venv\Scripts\python.exe -m flask --app run.py feedback-outcomes
 ```
 
 Uma repetição do mesmo envio (mesmo `submission_id`) é idempotente. Abrir uma
 nova página gera um identificador novo, permitindo registar uma resposta nova
-sem identificar o utilizador.
+sem identificar o utilizador. Os resultados de campo são apenas para avaliação:
+o treino automático não os usa e 100 respostas conhecidas apenas autorizam uma
+revisão offline, não uma afirmação de precisão.
 
 ## Estrutura
 

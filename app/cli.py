@@ -8,6 +8,8 @@ from pathlib import Path
 import click
 from sqlalchemy import func, inspect
 
+FIELD_OUTCOME_MINIMUM_SAMPLES = 100
+
 
 def register_cli(app) -> None:
     @app.cli.command("init-db")
@@ -30,12 +32,19 @@ def register_cli(app) -> None:
             columns = {
                 column["name"] for column in inspector.get_columns(table.name)
             }
-            if "submission_id" not in columns:
-                with db.engine.begin() as connection:
-                    connection.exec_driver_sql(
-                        "ALTER TABLE decision_feedback "
-                        "ADD COLUMN submission_id VARCHAR(36)"
-                    )
+            new_columns = {
+                "submission_id": "VARCHAR(36)",
+                "planting_date": "DATE",
+                "field_outcome": "VARCHAR(40)",
+                "outcome_reported_at": "TIMESTAMP",
+            }
+            for name, sql_type in new_columns.items():
+                if name not in columns:
+                    with db.engine.begin() as connection:
+                        connection.exec_driver_sql(
+                            f"ALTER TABLE decision_feedback "
+                            f"ADD COLUMN {name} {sql_type}"
+                        )
 
         inspector = inspect(db.engine)
         index_names = {
@@ -64,6 +73,7 @@ def register_cli(app) -> None:
             ("region", DecisionFeedback.region),
             ("crop", DecisionFeedback.crop),
             ("language", DecisionFeedback.lang),
+            ("field outcome", DecisionFeedback.field_outcome),
         )
         for label, column in dimensions:
             click.echo(f"By {label}:")
@@ -77,6 +87,48 @@ def register_cli(app) -> None:
                 click.echo("  (none)")
             for value, count in rows:
                 click.echo(f"  {value}: {count}")
+
+    @app.cli.command("feedback-outcomes")
+    def feedback_outcomes() -> None:
+        from .extensions import db
+        from .models import DecisionFeedback
+
+        known_outcomes = (
+            "emerged_no_replant",
+            "replanted_after_dry_spell",
+            "not_emerged_other",
+        )
+        known_count = (
+            db.session.query(func.count(DecisionFeedback.id))
+            .filter(DecisionFeedback.field_outcome.in_(known_outcomes))
+            .scalar()
+        ) or 0
+        click.echo(
+            f"Known field outcomes: {known_count}/"
+            f"{FIELD_OUTCOME_MINIMUM_SAMPLES}"
+        )
+        rows = (
+            db.session.query(
+                DecisionFeedback.field_outcome,
+                func.count(DecisionFeedback.id),
+            )
+            .filter(DecisionFeedback.field_outcome.isnot(None))
+            .group_by(DecisionFeedback.field_outcome)
+            .order_by(DecisionFeedback.field_outcome)
+            .all()
+        )
+        for outcome, count in rows:
+            click.echo(f"  {outcome}: {count}")
+        if known_count >= FIELD_OUTCOME_MINIMUM_SAMPLES:
+            click.echo(
+                "Minimum reached; review and offline evaluation are still "
+                "required. Field outcomes are not used for automatic training."
+            )
+        else:
+            click.echo(
+                "More reports are needed before field evaluation; "
+                "no accuracy claim is available."
+            )
 
     @app.cli.command("feedback-export")
     @click.option(
@@ -101,6 +153,9 @@ def register_cli(app) -> None:
             "region",
             "crop",
             "lang",
+            "planting_date",
+            "field_outcome",
+            "outcome_reported_at",
         )
 
         def spreadsheet_safe(value):

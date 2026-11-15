@@ -17,17 +17,24 @@ Pré-requisitos (igual à secção 8): conta Earthdata Login autorizada para o G
 DISC, com `%USERPROFILE%\.netrc` (entrada `urs.earthdata.nasa.gov`) ou
 `EARTHDATA_TOKEN` no ambiente. Nunca coloque credenciais no código.
 
+Os endpoints `/api/admin/*` exigem o segredo `ADMIN_TOKEN` no cabeçalho
+`X-Admin-Token` (sem ele respondem `401`; se `ADMIN_TOKEN` não estiver
+configurado, respondem `503`).
+
 ```powershell
 # 1. Iniciar a ingestão (corre em segundo plano)
-curl.exe -X POST http://127.0.0.1:8000/api/admin/ingest-harmony
+curl.exe -X POST http://127.0.0.1:8000/api/admin/ingest-harmony ^
+  -H "X-Admin-Token: $env:ADMIN_TOKEN"
 
 # Opcional: limitar o intervalo (corpo JSON)
 curl.exe -X POST http://127.0.0.1:8000/api/admin/ingest-harmony ^
+  -H "X-Admin-Token: $env:ADMIN_TOKEN" ^
   -H "Content-Type: application/json" ^
   -d "{\"start_date\": \"2023-06-01\", \"end_date\": \"2026-07-01\"}"
 
 # 2. Consultar o progresso (épocas, dias, erros, retreino)
-curl.exe http://127.0.0.1:8000/api/admin/ingest-harmony/status
+curl.exe http://127.0.0.1:8000/api/admin/ingest-harmony/status ^
+  -H "X-Admin-Token: $env:ADMIN_TOKEN"
 ```
 
 Notas operacionais:

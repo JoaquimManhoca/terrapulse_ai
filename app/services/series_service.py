@@ -42,6 +42,29 @@ def daily_series(start: date | None = None, end: date | None = None) -> pd.Serie
     return series.sort_index()
 
 
+def calendar_series(
+    start: date | None = None, end: date | None = None
+) -> pd.Series:
+    """Daily series reindexed to a complete calendar, gaps become NaN.
+
+    IMERG coverage is discontinuous, so a position-based rolling window over
+    the stored days could silently span weeks. Reindexing to every calendar
+    day between the first and last observation makes each missing day an
+    explicit NaN, so onset windows and dry-streak counts never bridge a gap.
+    """
+    frame = load_daily(start, end)
+    if frame.empty:
+        return pd.Series(dtype=float)
+    observed = pd.Series(
+        frame["precip_mm"].to_numpy(dtype=float),
+        index=pd.to_datetime(frame["day"]),
+    ).sort_index()
+    full_index = pd.date_range(
+        observed.index.min(), observed.index.max(), freq="D"
+    )
+    return observed.reindex(full_index)
+
+
 def _peak(values) -> float:
     if len(values) == 0:
         return 0.0

@@ -10,6 +10,14 @@ def test_pages_render(client):
         assert b"TerraPulse AI" in response.data, path
 
 
+def test_app_script_is_text_and_includes_feedback_followup(client):
+    response = client.get("/static/js/app.js")
+
+    assert response.status_code == 200
+    assert b"\x00" not in response.data
+    assert b"showDueFollowup" in response.data
+
+
 def test_decision_page_is_decision_first_with_feedback_and_share(client):
     response = client.get("/")
     assert response.status_code == 200
@@ -25,6 +33,8 @@ def test_decision_page_is_decision_first_with_feedback_and_share(client):
     assert 'name="choice" value="waited"' in html
     assert 'name="choice" value="not_helpful"' in html
     assert 'name="submission_id"' in html
+    assert 'data-feedback-outcome' in html
+    assert "não pedimos nome nem gps" in html.lower()
     assert 'https://wa.me/?text=' in html
     assert 'data-feedback' in html
     assert 'class="badge badge-real"' in html

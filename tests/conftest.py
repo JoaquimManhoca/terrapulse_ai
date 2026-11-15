@@ -24,6 +24,8 @@ def app(tmp_path):
         INGEST_DIR = tmp_path
         IMERG_PATTERN = "*.nc4"
         MODELS_DIR = tmp_path / "models"
+        ADMIN_TOKEN = "test-admin-token"
+        FEEDBACK_RATE_LIMIT = 1000
 
     application = create_app(TestConfig)
     with application.app_context():
@@ -50,3 +52,16 @@ def app(tmp_path):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture()
+def admin_headers():
+    return {"X-Admin-Token": "test-admin-token"}
+
+
+@pytest.fixture()
+def csrf(client):
+    """Issue a CSRF token by rendering a page, then return it."""
+    client.get("/")
+    with client.session_transaction() as session:
+        return session["csrf_token"]

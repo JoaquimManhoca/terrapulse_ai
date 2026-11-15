@@ -125,6 +125,15 @@ class Config:
         "mandioca": {"label_key": "crop.mandioca", "supported": False},
     }
 
+    # Shared secret guarding the /api/admin/* endpoints. When unset those
+    # endpoints stay closed (503), even locally, so they are never exposed by
+    # accident. The CLI (``flask ingest``, ``flask train``) does not need it.
+    ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
+
+    # Throttle for the anonymous feedback endpoints, keyed per client IP.
+    FEEDBACK_RATE_LIMIT = int(os.getenv("FEEDBACK_RATE_LIMIT", "30"))
+    FEEDBACK_RATE_WINDOW = float(os.getenv("FEEDBACK_RATE_WINDOW", "60"))
+
     AUTO_TRAIN_MODEL = _as_bool(
         os.getenv("AUTO_TRAIN_MODEL"),
         default=not IS_VERCEL_DEPLOYMENT,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from .config import Config, _engine_options
 from .extensions import cors, db
 from .i18n import LANGUAGES, SUPPORTED_LANGUAGES, get_catalog, translate
+from .security import csrf_is_valid, feedback_rate_limited, issue_csrf_token
 
 CONTENT_SECURITY_POLICY = "; ".join(
     (
@@ -43,6 +44,14 @@ CONTENT_SECURITY_POLICY = "; ".join(
 
 
 FEEDBACK_CHOICES = frozenset({"planted", "waited", "not_helpful"})
+FEEDBACK_OUTCOMES = frozenset(
+    {
+        "emerged_no_replant",
+        "replanted_after_dry_spell",
+        "not_emerged_other",
+        "unknown",
+    }
+)
 DECISION_STATES = frozenset(
     {"PLANT_NOW", "WAIT", "PLANT_IN_DAYS", "HIGH_RISK"}
 )
@@ -162,6 +171,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             "languages": LANGUAGES,
             "catalog": get_catalog(lang),
             "app_version": "0.2.0",
+            "csrf_token": issue_csrf_token(),
         }
 
     @app.after_request
@@ -248,6 +258,18 @@ def create_app(config_object: type[Config] = Config) -> Flask:
         session["crop"] = crop
         return region, crop
 
+    def _reject_feedback(wants_json: bool):
+        """Shared CSRF + rate-limit gate for the anonymous feedback routes."""
+        if not csrf_is_valid():
+            if wants_json:
+                return jsonify({"error": {"code": "csrf_failed"}}), 403
+            return redirect(url_for("index"))
+        if feedback_rate_limited():
+            if wants_json:
+                return jsonify({"error": {"code": "rate_limited"}}), 429
+            return redirect(url_for("index"))
+        return None
+
     @app.route("/")
     def index():
         from .services.decision import build_decision
@@ -277,6 +299,9 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             request.is_json
             or request.accept_mimetypes.best == "application/json"
         )
+        rejected = _reject_feedback(wants_json)
+        if rejected is not None:
+            return rejected
         choice = str(payload.get("choice", "")).strip()
         state = str(payload.get("state", "")).strip().upper()
         try:
@@ -297,9 +322,16 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
         def feedback_response(record, status_code=201):
             if wants_json:
-                return jsonify(
-                    {"status": "ok", "feedback": record.to_dict()}
-                ), status_code
+                payload = {"status": "ok", "feedback": record.to_dict()}
+                if record.choice == "planted" and record.field_outcome is None:
+                    created_at = record.created_at
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    followup_due_at = (
+                        created_at + timedelta(days=21)
+                    ).isoformat()
+                    payload["followup_due_at"] = followup_due_at
+                return jsonify(payload), status_code
             return redirect(url_for("index", feedback=1))
 
         try:
@@ -361,6 +393,111 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             return redirect(url_for("index"))
 
         return feedback_response(record)
+
+    @app.post("/feedback/outcome")
+    def feedback_outcome():
+        from .models import DecisionFeedback
+
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        payload = payload or {}
+        wants_json = (
+            request.is_json
+            or request.accept_mimetypes.best == "application/json"
+        )
+        rejected = _reject_feedback(wants_json)
+        if rejected is not None:
+            return rejected
+        try:
+            submission_id = str(UUID(str(payload.get("submission_id", ""))))
+        except (AttributeError, TypeError, ValueError):
+            submission_id = None
+        planting_date = _iso_date(payload.get("planting_date"))
+        outcome = str(payload.get("field_outcome", "")).strip()
+
+        if (
+            submission_id is None
+            or planting_date is None
+            or planting_date > date.today()
+            or outcome not in FEEDBACK_OUTCOMES
+        ):
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "invalid_field_outcome"}}
+                ), 400
+            return redirect(url_for("index"))
+
+        try:
+            record = DecisionFeedback.query.filter_by(
+                submission_id=submission_id,
+                choice="planted",
+            ).one_or_none()
+        except SQLAlchemyError:
+            current_app.logger.exception("Unable to load feedback outcome.")
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "feedback_unavailable"}}
+                ), 503
+            return redirect(url_for("index"))
+
+        if record is None:
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "feedback_not_found"}}
+                ), 404
+            return redirect(url_for("index"))
+
+        if planting_date < record.decision_date:
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "invalid_field_outcome"}}
+                ), 400
+            return redirect(url_for("index"))
+
+        created_at = record.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) < created_at + timedelta(days=21):
+            if wants_json:
+                return jsonify(
+                    {"error": {"code": "field_outcome_not_due"}}
+                ), 409
+            return redirect(url_for("index"))
+
+        if record.field_outcome is not None:
+            if (
+                record.field_outcome == outcome
+                and record.planting_date == planting_date
+            ):
+                status_code = 200
+            else:
+                if wants_json:
+                    return jsonify(
+                        {"error": {"code": "field_outcome_already_reported"}}
+                    ), 409
+                return redirect(url_for("index"))
+        else:
+            record.planting_date = planting_date
+            record.field_outcome = outcome
+            record.outcome_reported_at = datetime.now(timezone.utc).replace(
+                tzinfo=None
+            )
+            status_code = 201
+            try:
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+                current_app.logger.exception("Unable to save feedback outcome.")
+                if wants_json:
+                    return jsonify(
+                        {"error": {"code": "feedback_unavailable"}}
+                    ), 503
+                return redirect(url_for("index"))
+
+        if wants_json:
+            return jsonify(
+                {"status": "ok", "feedback": record.to_dict()}
+            ), status_code
+        return redirect(url_for("index", feedback_outcome=1))
 
     @app.route("/porque")
     def why():

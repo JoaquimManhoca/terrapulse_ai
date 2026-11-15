@@ -1,5 +1,5 @@
 /* TerraPulse AI service worker — offline shell for low-connectivity areas. */
-const CACHE = "terrapulse-v11";
+const CACHE = "terrapulse-v13";
 const PRECACHE = [
   "/",
   "/porque",

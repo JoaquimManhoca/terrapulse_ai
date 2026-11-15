@@ -27,6 +27,8 @@ def test_catalog_has_core_keys(lang):
         "decision.mixed_badge",
         "decision.share",
         "feedback.title",
+        "feedback.followup_title",
+        "feedback.field_outcome",
         "selector.change_title",
         "common.mixed_note",
         "forecast.title",

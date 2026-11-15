@@ -102,7 +102,9 @@
                 data-feedback
                 data-sending="{{ t('feedback.sending') }}"
                 data-thanks="{{ t('feedback.thanks') }}"
-                data-error="{{ t('feedback.error') }}">
+                data-error="{{ t('feedback.error') }}"
+                data-followup-storage-error="{{ t('feedback.followup_storage_error') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="submission_id" value="{{ feedback_submission_id }}">
             <fieldset>
               <legend>{{ t('feedback.title') }}</legend>
@@ -124,6 +126,7 @@
             <input type="hidden" name="last_day" value="{{ decision.last_day }}">
             <input type="hidden" name="reference_date" value="{{ decision.reference_date }}">
             <p class="feedback-status" data-feedback-status role="status" aria-live="polite"></p>
+            <p class="feedback-followup-notice">{{ t('feedback.followup_notice') }}</p>
           </form>
         </div>
 

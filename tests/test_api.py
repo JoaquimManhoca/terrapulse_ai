@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -16,7 +16,7 @@ def test_health(client):
     assert payload["data_status"] == "real"
 
 
-def test_feedback_records_one_tap_choice(client, app):
+def test_feedback_records_one_tap_choice(client, app, csrf):
     from app.models import DecisionFeedback
 
     submission_id = str(uuid4())
@@ -30,6 +30,7 @@ def test_feedback_records_one_tap_choice(client, app):
             "model_version": "heuristic-v0",
             "last_day": "2025-01-05",
             "reference_date": "2025-01-05",
+            "csrf_token": csrf,
         },
     )
 
@@ -37,6 +38,7 @@ def test_feedback_records_one_tap_choice(client, app):
     payload = response.get_json()
     assert payload["status"] == "ok"
     assert payload["feedback"]["choice"] == "planted"
+    assert payload["followup_due_at"]
     with app.app_context():
         record = DecisionFeedback.query.one()
         assert record.choice == "planted"
@@ -48,7 +50,7 @@ def test_feedback_records_one_tap_choice(client, app):
         assert record.last_observation == date(2025, 1, 5)
 
 
-def test_feedback_submission_is_idempotent(client, app):
+def test_feedback_submission_is_idempotent(client, app, csrf):
     from app.models import DecisionFeedback
 
     submission_id = str(uuid4())
@@ -58,6 +60,7 @@ def test_feedback_submission_is_idempotent(client, app):
             "submission_id": submission_id,
             "choice": "planted",
             "state": "PLANT_NOW",
+            "csrf_token": csrf,
         },
     )
     retry = client.post(
@@ -66,6 +69,7 @@ def test_feedback_submission_is_idempotent(client, app):
             "submission_id": submission_id,
             "choice": "waited",
             "state": "WAIT",
+            "csrf_token": csrf,
         },
     )
 
@@ -76,7 +80,7 @@ def test_feedback_submission_is_idempotent(client, app):
         assert DecisionFeedback.query.count() == 1
 
 
-def test_feedback_rejects_invalid_choice(client, app):
+def test_feedback_rejects_invalid_choice(client, app, csrf):
     from app.models import DecisionFeedback
 
     response = client.post(
@@ -85,6 +89,7 @@ def test_feedback_rejects_invalid_choice(client, app):
             "submission_id": str(uuid4()),
             "choice": "maybe",
             "state": "WAIT",
+            "csrf_token": csrf,
         },
     )
 
@@ -94,28 +99,147 @@ def test_feedback_rejects_invalid_choice(client, app):
         assert DecisionFeedback.query.count() == 0
 
 
-def test_feedback_rejects_missing_submission_id(client):
+def test_feedback_rejects_missing_submission_id(client, csrf):
     response = client.post(
         "/feedback",
-        json={"choice": "waited", "state": "WAIT"},
+        json={"choice": "waited", "state": "WAIT", "csrf_token": csrf},
     )
 
     assert response.status_code == 400
     assert response.get_json()["error"]["code"] == "invalid_feedback"
 
 
-def test_feedback_form_fallback_redirects(client):
+def test_feedback_form_fallback_redirects(client, csrf):
     response = client.post(
         "/feedback",
         data={
             "submission_id": str(uuid4()),
             "choice": "waited",
             "state": "WAIT",
+            "csrf_token": csrf,
         },
     )
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/?feedback=1")
+
+
+def test_field_outcome_cannot_be_submitted_before_21_days(client, csrf):
+    submission_id = str(uuid4())
+    feedback = client.post(
+        "/feedback",
+        json={
+            "submission_id": submission_id,
+            "choice": "planted",
+            "state": "PLANT_NOW",
+            "csrf_token": csrf,
+        },
+    )
+    assert feedback.status_code == 201
+
+    response = client.post(
+        "/feedback/outcome",
+        json={
+            "submission_id": submission_id,
+            "planting_date": date.today().isoformat(),
+            "field_outcome": "emerged_no_replant",
+            "csrf_token": csrf,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "field_outcome_not_due"
+
+
+def test_field_outcome_is_recorded_after_21_days(client, app, csrf):
+    from app.extensions import db
+    from app.models import DecisionFeedback
+
+    submission_id = str(uuid4())
+    client.post(
+        "/feedback",
+        json={
+            "submission_id": submission_id,
+            "choice": "planted",
+            "state": "PLANT_NOW",
+            "reference_date": (date.today() - timedelta(days=22)).isoformat(),
+            "csrf_token": csrf,
+        },
+    )
+    with app.app_context():
+        record = DecisionFeedback.query.one()
+        record.created_at = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        ) - timedelta(days=22)
+        db.session.commit()
+
+    payload = {
+        "submission_id": submission_id,
+        "planting_date": (date.today() - timedelta(days=22)).isoformat(),
+        "field_outcome": "emerged_no_replant",
+        "csrf_token": csrf,
+    }
+    response = client.post("/feedback/outcome", json=payload)
+    retry = client.post("/feedback/outcome", json=payload)
+
+    assert response.status_code == 201
+    assert retry.status_code == 200
+    assert response.get_json()["feedback"]["field_outcome"] == "emerged_no_replant"
+    with app.app_context():
+        record = DecisionFeedback.query.one()
+        assert record.planting_date == date.today() - timedelta(days=22)
+        assert record.outcome_reported_at is not None
+
+
+def test_field_outcome_requires_a_real_planted_feedback(client, csrf):
+    response = client.post(
+        "/feedback/outcome",
+        json={
+            "submission_id": str(uuid4()),
+            "planting_date": date.today().isoformat(),
+            "field_outcome": "emerged_no_replant",
+            "csrf_token": csrf,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["error"]["code"] == "feedback_not_found"
+
+
+def test_field_outcome_rejects_planting_before_decision(client, app, csrf):
+    from app.extensions import db
+    from app.models import DecisionFeedback
+
+    submission_id = str(uuid4())
+    client.post(
+        "/feedback",
+        json={
+            "submission_id": submission_id,
+            "choice": "planted",
+            "state": "PLANT_NOW",
+            "reference_date": "2025-01-05",
+            "csrf_token": csrf,
+        },
+    )
+    with app.app_context():
+        record = DecisionFeedback.query.one()
+        record.created_at = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        ) - timedelta(days=22)
+        db.session.commit()
+
+    response = client.post(
+        "/feedback/outcome",
+        json={
+            "submission_id": submission_id,
+            "planting_date": "2025-01-04",
+            "field_outcome": "emerged_no_replant",
+            "csrf_token": csrf,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_field_outcome"
 
 
 def test_feedback_cli_summary_and_csv_export(app, tmp_path):
@@ -134,6 +258,9 @@ def test_feedback_cli_summary_and_csv_export(app, tmp_path):
                 region="manica",
                 crop="milho",
                 lang="pt",
+                planting_date=date(2025, 1, 5),
+                field_outcome="emerged_no_replant",
+                outcome_reported_at=datetime(2025, 1, 26),
             )
         )
         db.session.commit()
@@ -154,6 +281,37 @@ def test_feedback_cli_summary_and_csv_export(app, tmp_path):
     assert len(rows) == 1
     assert rows[0]["choice"] == "planted"
     assert rows[0]["model_version"] == "'=1+1"
+    assert rows[0]["field_outcome"] == "emerged_no_replant"
+
+
+def test_feedback_outcome_cli_requires_one_hundred_known_reports(app):
+    from app.extensions import db
+    from app.models import DecisionFeedback
+
+    with app.app_context():
+        db.session.bulk_save_objects(
+            [
+                DecisionFeedback(
+                    submission_id=str(uuid4()),
+                    decision_date=date(2025, 1, 5),
+                    choice="planted",
+                    state="PLANT_NOW",
+                    confidence=0.82,
+                    region="manica",
+                    crop="milho",
+                    lang="pt",
+                    field_outcome="emerged_no_replant",
+                )
+                for _ in range(100)
+            ]
+        )
+        db.session.commit()
+
+    result = app.test_cli_runner().invoke(args=["feedback-outcomes"])
+
+    assert result.exit_code == 0
+    assert "Known field outcomes: 100/100" in result.output
+    assert "not used for automatic training" in result.output
 
 
 def test_feedback_schema_upgrade_adds_missing_idempotency_column(app):
@@ -166,9 +324,15 @@ def test_feedback_schema_upgrade_adds_missing_idempotency_column(app):
             connection.exec_driver_sql(
                 "DROP INDEX uq_decision_feedback_submission_id"
             )
-            connection.exec_driver_sql(
-                "ALTER TABLE decision_feedback DROP COLUMN submission_id"
-            )
+            for column in (
+                "outcome_reported_at",
+                "field_outcome",
+                "planting_date",
+                "submission_id",
+            ):
+                connection.exec_driver_sql(
+                    f"ALTER TABLE decision_feedback DROP COLUMN {column}"
+                )
 
     result = app.test_cli_runner().invoke(
         args=["upgrade-feedback-schema"]
@@ -186,6 +350,9 @@ def test_feedback_schema_upgrade_adds_missing_idempotency_column(app):
             index["name"] for index in inspector.get_indexes("decision_feedback")
         }
     assert "submission_id" in columns
+    assert "planting_date" in columns
+    assert "field_outcome" in columns
+    assert "outcome_reported_at" in columns
     assert "uq_decision_feedback_submission_id" in indexes
 
 
@@ -364,10 +531,81 @@ def test_climatology_endpoint(client):
     assert "monthly" in payload and "yearly" in payload
 
 
-def test_ingest_endpoint_on_empty_directory(client):
-    response = client.post("/api/admin/ingest")
+def test_ingest_endpoint_on_empty_directory(client, admin_headers):
+    response = client.post("/api/admin/ingest", headers=admin_headers)
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ingested"] == 0
     assert payload["updated"] == 0
     assert payload["days"] == 0
+
+
+def test_admin_endpoint_requires_token(client):
+    response = client.post("/api/admin/ingest")
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "unauthorized"
+
+
+def test_admin_endpoint_rejects_wrong_token(client):
+    response = client.post(
+        "/api/admin/ingest", headers={"X-Admin-Token": "nope"}
+    )
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "unauthorized"
+
+
+def test_admin_endpoint_disabled_without_configured_token(client, app):
+    app.config["ADMIN_TOKEN"] = None
+    response = client.post("/api/admin/ingest")
+    assert response.status_code == 503
+    assert response.get_json()["error"]["code"] == "admin_disabled"
+
+
+def test_feedback_requires_csrf_token(client):
+    response = client.post(
+        "/feedback",
+        json={"submission_id": str(uuid4()), "choice": "waited", "state": "WAIT"},
+    )
+    assert response.status_code == 403
+    assert response.get_json()["error"]["code"] == "csrf_failed"
+
+
+def test_feedback_accepts_csrf_via_header(client, csrf):
+    response = client.post(
+        "/feedback",
+        json={"submission_id": str(uuid4()), "choice": "waited", "state": "WAIT"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert response.status_code == 201
+
+
+def test_feedback_is_rate_limited(client, app, csrf):
+    from app.security import reset_rate_limits
+
+    app.config["FEEDBACK_RATE_LIMIT"] = 2
+    reset_rate_limits()
+    try:
+        for _ in range(2):
+            ok = client.post(
+                "/feedback",
+                json={
+                    "submission_id": str(uuid4()),
+                    "choice": "waited",
+                    "state": "WAIT",
+                    "csrf_token": csrf,
+                },
+            )
+            assert ok.status_code == 201
+        limited = client.post(
+            "/feedback",
+            json={
+                "submission_id": str(uuid4()),
+                "choice": "waited",
+                "state": "WAIT",
+                "csrf_token": csrf,
+            },
+        )
+        assert limited.status_code == 429
+        assert limited.get_json()["error"]["code"] == "rate_limited"
+    finally:
+        reset_rate_limits()

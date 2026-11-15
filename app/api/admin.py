@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from datetime import date, timedelta
 
 from flask import Blueprint, current_app, jsonify, request
@@ -12,6 +13,30 @@ from ..services.ingest import ingest_imerg
 from ..services.training import train_and_persist
 
 bp = Blueprint("admin", __name__)
+
+
+def _denied(code: str, message: str, status: int):
+    return jsonify({"error": {"code": code, "message": message}}), status
+
+
+@bp.before_request
+def _require_admin_token():
+    """Every admin route needs a shared secret sent as X-Admin-Token."""
+    expected = current_app.config.get("ADMIN_TOKEN")
+    if not expected:
+        return _denied(
+            "admin_disabled",
+            "ADMIN_TOKEN is not configured; the admin API is disabled.",
+            503,
+        )
+    provided = request.headers.get("X-Admin-Token")
+    if not provided or not hmac.compare_digest(str(provided), str(expected)):
+        return _denied(
+            "unauthorized",
+            "A valid X-Admin-Token header is required.",
+            401,
+        )
+    return None
 
 
 @bp.post("/admin/ingest")

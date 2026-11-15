@@ -53,6 +53,9 @@ class DecisionFeedback(db.Model):
     region = db.Column(db.String(32), nullable=False)
     crop = db.Column(db.String(32), nullable=False)
     lang = db.Column(db.String(16), nullable=False)
+    planting_date = db.Column(db.Date, nullable=True)
+    field_outcome = db.Column(db.String(40), nullable=True)
+    outcome_reported_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -71,23 +74,13 @@ class DecisionFeedback(db.Model):
             "region": self.region,
             "crop": self.crop,
             "lang": self.lang,
-        }
-
-
-class PredictionLog(db.Model):
-    __tablename__ = "prediction_log"
-
-    id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
-    state = db.Column(db.String(32), nullable=False)
-    confidence = db.Column(db.Float, nullable=False)
-    payload = db.Column(db.JSON, nullable=False)
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "created_at": self.created_at.isoformat(),
-            "state": self.state,
-            "confidence": self.confidence,
-            "payload": self.payload,
+            "planting_date": (
+                self.planting_date.isoformat() if self.planting_date else None
+            ),
+            "field_outcome": self.field_outcome,
+            "outcome_reported_at": (
+                self.outcome_reported_at.isoformat()
+                if self.outcome_reported_at
+                else None
+            ),
         }

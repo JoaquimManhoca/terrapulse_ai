@@ -37,10 +37,13 @@ heurística da Fase 0 com o mesmo contrato de saída.
 
 ## Treino e persistência
 
-- **Auto-treino no arranque** quando não existe um modelo treinado com dados
+- **Treino local no arranque** quando não existe um modelo treinado com dados
   reais (`AUTO_TRAIN_MODEL`, por omissão ativo); um modelo legado sem
-  `data_status="real"` é ignorado e substituído. Pode ser desativado por
-  variável de ambiente.
+  `data_status="real"` é ignorado e substituído.
+- **Vercel:** por omissão, `build_vercel.py` valida e empacota o artefacto real
+  versionado em `data/models/onset_rf.joblib`; o runtime não treina por pedido.
+  `TRAIN_MODEL_AT_BUILD=true` ativa retreino durante um build planeado com a
+  `DATABASE_URL`.
 - O treino aceita exclusivamente `imerg_early_daily` e `imerg_final_daily`;
   falha explicitamente quando não há dados reais ou épocas completas
   suficientes.
@@ -50,6 +53,19 @@ heurística da Fase 0 com o mesmo contrato de saída.
   validação/teste (409 quando os dados são insuficientes).
 - Modelo + metadata (versão, data, métricas) num único ficheiro
   `data/models/onset_rf.joblib`, gravado atomicamente.
+
+## Resultados de campo e validação
+
+- Depois de uma resposta `planted`, a aplicação pode apresentar neste
+  dispositivo um seguimento após 21 dias para recolher a data de plantio e um
+  resultado auto-reportado: emergiu sem replantio, foi necessário replantar
+  após período seco, não emergiu por outro motivo ou resultado desconhecido.
+- Não são pedidos nome nem coordenadas GPS. Estes relatos não entram no treino
+  automático; a CLI `flask feedback-outcomes` acompanha a recolha.
+- O limiar definido para iniciar uma revisão offline é 100 resultados
+  conhecidos. Atingi-lo não garante representatividade, qualidade dos rótulos
+  nem precisão; a avaliação deve ser revista por agrónomos e separada por
+  épocas/regiões antes de qualquer alteração do modelo.
 
 ## Fora de âmbito
 
@@ -80,6 +96,8 @@ heurística da Fase 0 com o mesmo contrato de saída.
 - As métricas disponíveis são calculadas apenas com observações IMERG reais.
   Continuam a medir rótulos fracos derivados da regra de onset, não sucesso da
   sementeira nem habilidade preditiva validada em campo.
+- A reavaliação com resultados de campo ainda não está disponível; os relatos
+  recolhidos são observacionais e auto-reportados.
 - Rotulagem fraca: o rótulo deriva da mesma regra que a heurística; a vantagem
   esperada do modelo é capturar interações entre acumulados, cobertura e
   calendário que as regras fixas não modelam.
@@ -102,7 +120,8 @@ heurística da Fase 0 com o mesmo contrato de saída.
   perda de semente.
 - O modelo não substitui a regra de falso onset em curso: `HIGH_RISK` tem
   prioridade sobre a probabilidade do modelo.
-- Não recolhe dados pessoais nesta fase.
+- O seguimento de campo não pede nome ou coordenadas GPS; os resultados são
+  auto-reportados e podem conter erro.
 
 ## Manutenção
 

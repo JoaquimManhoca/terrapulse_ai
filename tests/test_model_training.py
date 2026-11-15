@@ -76,8 +76,8 @@ def test_model_round_trip_keeps_predictions(tmp_path):
     assert (before == after).all()
 
 
-def test_train_endpoint_returns_model_record(client):
-    response = client.post("/api/admin/train")
+def test_train_endpoint_returns_model_record(client, admin_headers):
+    response = client.post("/api/admin/train", headers=admin_headers)
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["version"] == MODEL_VERSION

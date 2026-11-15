@@ -3,7 +3,8 @@
   "buildCommand": "python build_vercel.py",
   "functions": {
     "index.py": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "data/models/onset_rf.joblib"
     }
   },
   "headers": [

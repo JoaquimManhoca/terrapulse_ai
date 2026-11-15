@@ -116,13 +116,16 @@ def test_start_validates_range(app):
             )
 
 
-def test_harmony_ingest_runs_and_retrains(client, monkeypatch, tmp_path, harmony_env):
+def test_harmony_ingest_runs_and_retrains(
+    client, monkeypatch, tmp_path, harmony_env, admin_headers
+):
     fake = FakeClient(tmp_path, seasons=[2023], polls=2)
     monkeypatch.setattr(harmony_ingest, "_earthdata_client", lambda: fake)
 
     response = client.post(
         "/api/admin/ingest-harmony",
         json={"start_date": "2023-01-01", "end_date": "2024-06-01"},
+        headers=admin_headers,
     )
     assert response.status_code == 202
     assert response.get_json()["seasons_total"] == 1
@@ -130,7 +133,9 @@ def test_harmony_ingest_runs_and_retrains(client, monkeypatch, tmp_path, harmony
     deadline = time.time() + 60
     status = {}
     while time.time() < deadline:
-        status = client.get("/api/admin/ingest-harmony/status").get_json()
+        status = client.get(
+            "/api/admin/ingest-harmony/status", headers=admin_headers
+        ).get_json()
         if not status["running"]:
             break
         time.sleep(0.05)
@@ -150,7 +155,7 @@ def test_harmony_ingest_runs_and_retrains(client, monkeypatch, tmp_path, harmony
 
 
 def test_second_ingest_while_running_is_rejected(
-    client, monkeypatch, tmp_path, harmony_env
+    client, monkeypatch, tmp_path, harmony_env, admin_headers
 ):
     fake = FakeClient(tmp_path, seasons=[2023], polls=10_000)
     monkeypatch.setattr(harmony_ingest, "_earthdata_client", lambda: fake)
@@ -159,12 +164,14 @@ def test_second_ingest_while_running_is_rejected(
     first = client.post(
         "/api/admin/ingest-harmony",
         json={"start_date": "2023-01-01", "end_date": "2024-06-01"},
+        headers=admin_headers,
     )
     assert first.status_code == 202
 
     second = client.post(
         "/api/admin/ingest-harmony",
         json={"start_date": "2023-01-01", "end_date": "2024-06-01"},
+        headers=admin_headers,
     )
     assert second.status_code == 409
     assert second.get_json()["error"]["code"] == "already_running"
@@ -172,7 +179,9 @@ def test_second_ingest_while_running_is_rejected(
     deadline = time.time() + 30
     status = {}
     while time.time() < deadline:
-        status = client.get("/api/admin/ingest-harmony/status").get_json()
+        status = client.get(
+            "/api/admin/ingest-harmony/status", headers=admin_headers
+        ).get_json()
         if not status["running"]:
             break
         time.sleep(0.05)

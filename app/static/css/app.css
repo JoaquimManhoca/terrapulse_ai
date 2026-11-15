@@ -833,6 +833,80 @@ button {
   opacity: 0.9;
 }
 
+.feedback-followup-notice {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.feedback-outcome {
+  margin-top: var(--space-3);
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  box-shadow: var(--shadow-card);
+}
+
+.feedback-outcome fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-outcome legend,
+.feedback-outcome label {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.feedback-outcome label {
+  display: grid;
+  gap: 5px;
+}
+
+.feedback-outcome input,
+.feedback-outcome select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: inherit;
+}
+
+.feedback-outcome option {
+  color: #17231d;
+}
+
+.feedback-outcome button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary-strong);
+  border-radius: 10px;
+  background: var(--color-primary-strong);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.feedback-outcome button:hover {
+  filter: brightness(1.1);
+}
+
+.feedback-outcome button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .decision-weather {
   min-width: 0;
   display: flex;

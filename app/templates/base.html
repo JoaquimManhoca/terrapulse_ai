@@ -99,6 +99,38 @@
   <main id="main" class="app-main">
     <div class="container">
       {% block content %}{% endblock %}
+      <form class="feedback-outcome"
+            method="post"
+            action="{{ url_for('feedback_outcome') }}"
+            data-feedback-outcome
+            data-sending="{{ t('feedback.outcome_sending') }}"
+            data-thanks="{{ t('feedback.outcome_thanks') }}"
+            data-error="{{ t('feedback.outcome_error') }}"
+            data-not-due="{{ t('feedback.outcome_not_due') }}"
+            data-already-reported="{{ t('feedback.outcome_already_reported') }}"
+            hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="submission_id">
+        <fieldset>
+          <legend>{{ t('feedback.followup_title') }}</legend>
+          <label>
+            {{ t('feedback.planting_date') }}
+            <input type="date" name="planting_date" required>
+          </label>
+          <label>
+            {{ t('feedback.field_outcome') }}
+            <select name="field_outcome" required>
+              <option value="" selected disabled>{{ t('feedback.field_outcome') }}</option>
+              <option value="emerged_no_replant">{{ t('feedback.outcome_emerged') }}</option>
+              <option value="replanted_after_dry_spell">{{ t('feedback.outcome_replanted') }}</option>
+              <option value="not_emerged_other">{{ t('feedback.outcome_other') }}</option>
+              <option value="unknown">{{ t('feedback.outcome_unknown') }}</option>
+            </select>
+          </label>
+          <button type="submit">{{ t('feedback.outcome_send') }}</button>
+        </fieldset>
+        <p class="feedback-status" data-feedback-outcome-status role="status" aria-live="polite"></p>
+      </form>
     </div>
   </main>
 
