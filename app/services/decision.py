@@ -349,7 +349,9 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
         dry_day_mm=Config.DECISION_DRY_DAY_MM,
     )
 
-    forecast = fetch_open_meteo() if forecast_enabled else None
+    forecast = (
+        fetch_open_meteo() if forecast_enabled and not data_stale else None
+    )
     forecast_info = _forecast_summary(forecast, today, lang)
 
     onset_prob, model_version_used = _model_onset_probability(frame)
@@ -440,7 +442,7 @@ def build_decision(lang: str = "pt", forecast_enabled: bool | None = None) -> di
                 translate("common.mm", lang),
             )
         )
-    elif forecast_enabled:
+    elif forecast_enabled and not data_stale:
         reasons.append(
             _reason("forecast_unavailable", translate("reason.forecast_unavailable", lang))
         )

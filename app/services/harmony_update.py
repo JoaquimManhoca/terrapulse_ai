@@ -177,7 +177,11 @@ def update_early(
         start = max(start, first_day)
         end = min(end, last_day)
     if end < start:
-        raise ValueError("The requested range is outside IMERG Early coverage.")
+        return UpdateResult(
+            requested_start=start,
+            requested_end=end,
+            days_requested=0,
+        )
 
     result = UpdateResult(
         requested_start=start,

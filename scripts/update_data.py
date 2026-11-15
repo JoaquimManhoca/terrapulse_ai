@@ -39,7 +39,10 @@ def main() -> int:
         "--end",
         type=date.fromisoformat,
         default=None,
-        help="Last day (YYYY-MM-DD). Default: yesterday (Early lag).",
+        help=(
+            "Last day (YYYY-MM-DD). Default: yesterday, clamped to the latest "
+            "day published by IMERG Early."
+        ),
     )
     parser.add_argument(
         "--sqlite",
@@ -123,26 +126,32 @@ def main() -> int:
             chunk_days=args.chunk_days,
             progress=report,
         )
-        summary = result.as_dict()
-        print(
-            f"Update finished: {summary['days_ingested']} inserted, "
-            f"{summary['days_updated']} updated, "
-            f"{summary['jobs_completed']}/{summary['jobs_submitted']} jobs."
-        )
-        for error in result.errors[:10]:
-            print(f"  - {error}")
+        if result.days_requested == 0:
+            print(
+                "No new IMERG Early days available yet; "
+                "leaving observations and model unchanged."
+            )
+        else:
+            summary = result.as_dict()
+            print(
+                f"Update finished: {summary['days_ingested']} inserted, "
+                f"{summary['days_updated']} updated, "
+                f"{summary['jobs_completed']}/{summary['jobs_submitted']} jobs."
+            )
+            for error in result.errors[:10]:
+                print(f"  - {error}")
 
-        if args.retrain:
-            from app.services.training import train_and_persist
+            if args.retrain:
+                from app.services.training import train_and_persist
 
-            try:
-                record = train_and_persist()
-            except ValueError as exc:
-                print(f"Training skipped: {exc}")
-            else:
-                print(
-                    f"Model {record['version']} saved at {record['saved_at']}."
-                )
+                try:
+                    record = train_and_persist()
+                except ValueError as exc:
+                    print(f"Training skipped: {exc}")
+                else:
+                    print(
+                        f"Model {record['version']} saved at {record['saved_at']}."
+                    )
 
     if not args.no_sync and target_url and target_url.startswith(
         ("postgres://", "postgresql://")

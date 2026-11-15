@@ -11,7 +11,7 @@
     {% set data_status = decision.data_status %}
     {% include "_data_status.html" %}
     {% if decision.last_updated %}
-      <span class="updated">{{ icon('clock', 16) }} {{ t('decision.updated') }}: {{ decision.last_updated }}</span>
+      <span class="updated">{{ icon('clock', 16) }} {{ t('decision.observed_until') }}: {{ decision.last_updated }}</span>
     {% endif %}
     <span class="model-chip">{{ icon('spark', 14) }} {{ decision.model_version }}</span>
   </div>

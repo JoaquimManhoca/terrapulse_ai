@@ -25,6 +25,19 @@ def test_date_chunks_cover_the_range():
     ]
 
 
+def test_update_early_is_noop_when_coverage_has_no_new_day(monkeypatch):
+    monkeypatch.setattr(
+        harmony_update,
+        "collection_coverage",
+        lambda collection_id: (date(2025, 1, 1), date(2025, 1, 5)),
+    )
+
+    result = harmony_update.update_early(date(2025, 1, 6), date(2025, 1, 7))
+
+    assert result.days_requested == 0
+    assert result.errors == []
+
+
 class _FakeFuture:
     def __init__(self, path: Path):
         self._path = path

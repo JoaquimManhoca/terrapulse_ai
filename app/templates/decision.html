@@ -49,7 +49,7 @@
             {% set data_status = decision.data_status %}
             {% include "_data_status.html" %}
             {% if decision.last_updated %}
-              <small class="decision-updated">{{ t('decision.updated') }}: {{ decision.last_updated }}</small>
+              <small class="decision-updated">{{ t('decision.observed_until') }}: {{ decision.last_updated }}</small>
             {% endif %}
           </div>
           <h1 class="decision-headline">{{ decision.headline }}</h1>
@@ -105,6 +105,8 @@
             {% endfor %}
           </div>
         </section>
+      {% elif decision.data_stale and decision.last_updated %}
+        <p class="forecast-unavailable">{{ t('forecast.stale_unavailable') }}</p>
       {% else %}
         <p class="forecast-unavailable">{{ t('forecast.unavailable') }}</p>
       {% endif %}

@@ -17,7 +17,7 @@ def test_decision_page_has_selector_and_no_details(client):
     assert 'name="crop"' in html
     assert 'class="decision-card' in html
     assert 'class="badge badge-real"' in html
-    assert "Última atualização:" in html
+    assert "Observações até:" in html
     assert 'class="decision-recommendation"' in html
     assert 'class="weather-art weather-art--' in html
     assert 'data-weather-probability' in html
@@ -80,17 +80,17 @@ def test_decision_page_renders_selectable_daily_weather(client, app, monkeypatch
     from app.services import decision as decision_service
 
     app.config["FORECAST_ENABLED"] = True
-    monkeypatch.setattr(decision_service, "_local_today", lambda: date(2026, 1, 1))
+    monkeypatch.setattr(decision_service, "_local_today", lambda: date(2025, 1, 1))
     monkeypatch.setattr(
         decision_service,
         "fetch_open_meteo",
         lambda: {
             "source": "open-meteo",
             "rows": [
-                {"date": "2026-01-01", "weather_code": 0, "precip_mm": 0, "probability_pct": 5},
-                {"date": "2026-01-02", "weather_code": 2, "precip_mm": 0, "probability_pct": 10},
-                {"date": "2026-01-03", "weather_code": 3, "precip_mm": 0, "probability_pct": 20},
-                {"date": "2026-01-04", "weather_code": 61, "precip_mm": 4, "probability_pct": 80},
+                {"date": "2025-01-01", "weather_code": 0, "precip_mm": 0, "probability_pct": 5},
+                {"date": "2025-01-02", "weather_code": 2, "precip_mm": 0, "probability_pct": 10},
+                {"date": "2025-01-03", "weather_code": 3, "precip_mm": 0, "probability_pct": 20},
+                {"date": "2025-01-04", "weather_code": 61, "precip_mm": 4, "probability_pct": 80},
             ],
         },
     )
@@ -101,6 +101,25 @@ def test_decision_page_renders_selectable_daily_weather(client, app, monkeypatch
     for condition in ("sunny", "partly-cloudy", "cloudy", "rainy"):
         assert f'data-condition="{condition}"' in html
     assert 'data-probability="5"' in html
+
+
+def test_stale_decision_page_hides_forecast(client, app, monkeypatch):
+    from datetime import date
+
+    from app.services import decision as decision_service
+
+    app.config["FORECAST_ENABLED"] = True
+    monkeypatch.setattr(decision_service, "_local_today", lambda: date(2025, 2, 1))
+
+    def fail_forecast():
+        raise AssertionError("stale data must not fetch a forecast")
+
+    monkeypatch.setattr(decision_service, "fetch_open_meteo", fail_forecast)
+
+    html = client.get("/").get_data(as_text=True)
+    assert "Dados desatualizados" in html
+    assert 'class="weather-forecast"' not in html
+    assert "Previsão suspensa até os dados de chuva serem atualizados." in html
 
 
 def test_security_headers_are_present(client):

@@ -309,7 +309,9 @@ configurado em `DATABASE_URL`:
 ```
 
 Por omissão começa no dia seguinte à última observação local e termina
-ontem. Para um intervalo explícito:
+ontem, mas nunca depois do último dia já publicado pela coleção Early. Se
+ainda não existir um novo dia, o comando termina com sucesso sem alterar dados
+nem modelo. Para um intervalo explícito:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\update_data.py `
@@ -327,7 +329,8 @@ Garantias:
 
 - Observações `imerg_final_daily` existentes **nunca** são substituídas por
   Early.
-- O intervalo é limitado à cobertura real da coleção Early consultada via CMR.
+- O intervalo é limitado à cobertura real da coleção Early consultada via CMR;
+  sem dias novos, a execução é um no-op bem-sucedido.
 - A sincronização é idempotente e remove apenas linhas não-IMERG do destino.
 - Se não houver dados suficientes para treinar, o modelo anterior é mantido e o
   aviso é registado.
@@ -343,10 +346,11 @@ $action = New-ScheduledTaskAction `
 Register-ScheduledTask `
   -TaskName "TerraPulse IMERG Update" `
   -Action $action `
-  -Trigger (New-ScheduledTaskTrigger -Daily -At 06:00) `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 12:00) `
   -Description "Atualiza IMERG, retreina o modelo e sincroniza o Supabase."
 ```
 
+A tarefa corre ao meio-dia para dar tempo ao CMR de publicar o dia anterior.
 O wrapper escreve o registo em `data\update_data.log`. Confirme o resultado em
-`/api/health` e na data da última observação mostrada na aplicação.
+`/api/health` e na data das observações mostrada na aplicação.
 

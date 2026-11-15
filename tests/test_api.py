@@ -27,12 +27,18 @@ def test_decision_contract(client):
     assert payload["probabilities"]["onset_21d"] is None
 
 
-def test_decision_blocks_stale_data(client, monkeypatch):
+def test_decision_blocks_stale_data(client, app, monkeypatch):
     from app.services import decision as decision_service
 
+    app.config["FORECAST_ENABLED"] = True
     monkeypatch.setattr(
         decision_service, "_local_today", lambda: date(2026, 11, 14)
     )
+
+    def fail_forecast():
+        raise AssertionError("stale data must not fetch a forecast")
+
+    monkeypatch.setattr(decision_service, "fetch_open_meteo", fail_forecast)
 
     payload = client.get("/api/decision").get_json()
 
@@ -40,8 +46,10 @@ def test_decision_blocks_stale_data(client, monkeypatch):
     assert payload["data_age_days"] > 7
     assert payload["state"] == "WAIT"
     assert payload["days_to_plant"] is None
+    assert payload["forecast"] is None
     assert "dados antigos" in payload["recommendation"]
     assert payload["reasons"][0]["code"] == "data_stale"
+    assert all(reason["code"] != "forecast_rain" for reason in payload["reasons"])
 
 
 def test_decision_accepts_fresh_data(client, monkeypatch):
