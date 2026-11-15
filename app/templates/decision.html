@@ -78,39 +78,6 @@
         </div>
       </div>
 
-      {% if decision.forecast and decision.forecast.daily %}
-        <section class="weather-forecast" aria-labelledby="weather-forecast-title">
-          <h2 id="weather-forecast-title">{{ t('forecast.title') }}</h2>
-          <div class="forecast-days" role="group" aria-label="{{ t('forecast.title') }}">
-            {% for day in decision.forecast.daily %}
-              <button class="forecast-day{% if loop.first %} is-active{% endif %}"
-                      type="button"
-                      data-weather-day
-                      data-condition="{{ day.condition }}"
-                      data-icon="{{ day.icon }}"
-                      data-label="{{ day.label }}"
-                      data-caption="{{ day.weekday }}, {{ day.date }}"
-                      data-probability="{% if day.probability_pct is not none %}{{ day.probability_pct }}{% endif %}"
-                      aria-pressed="{{ 'true' if loop.first else 'false' }}"
-                      aria-label="{{ day.weekday }} {{ day.date }}: {{ day.label }}{% if day.probability_pct is not none %}, {{ t('forecast.rain_chance') }} {{ day.probability_pct }}%{% endif %}">
-                <span class="forecast-weekday">{{ day.weekday }}</span>
-                <span class="weather-day-icon weather-day-icon--{{ day.condition }}">
-                  {{ icon(day.icon, 24) }}
-                </span>
-                <span class="forecast-date">{{ day.date }}</span>
-                <span class="forecast-probability">
-                  {% if day.probability_pct is not none %}{{ day.probability_pct }}%{% else %}—{% endif %}
-                </span>
-              </button>
-            {% endfor %}
-          </div>
-        </section>
-      {% elif decision.data_stale and decision.last_updated %}
-        <p class="forecast-unavailable">{{ t('forecast.stale_unavailable') }}</p>
-      {% else %}
-        <p class="forecast-unavailable">{{ t('forecast.unavailable') }}</p>
-      {% endif %}
-
       {% if decision.plan and decision.plan.days %}
         <section class="planting-plan" aria-labelledby="planting-plan-title">
           <div class="plan-head">
@@ -136,22 +103,19 @@
             {% endfor %}
           </div>
 
-          <div class="plan-weeks">
-            {% for week in decision.plan.weeks %}
-              <div class="plan-week">
-                {% for day in week %}
-                  <div class="plan-day plan-day--{{ day.action }}{% if day.phase == 'climate' %} is-climate{% endif %}{% if day.is_today %} is-today{% endif %}"
-                       data-plan-day
-                       data-plan-phase="{{ day.phase }}"
-                       data-plan-action="{{ day.action }}"
-                       aria-label="{{ day.weekday }} {{ day.label }}: {{ day.weather_label }}{% if day.probability_pct is not none %}, {{ day.probability_pct }}{{ t('common.percent') }} {% if day.phase == 'climate' %}{{ t('plan.climate_chance') }}{% else %}{{ t('forecast.rain_chance') }}{% endif %}{% endif %}, {{ t('plan.action_' ~ day.action) }}">
-                    <span class="plan-weekday">{{ day.weekday }}</span>
-                    <span class="plan-date">{{ day.label }}</span>
-                    <span class="plan-icon">{{ icon(day.icon, 18) }}</span>
-                    <span class="plan-probability">{% if day.probability_pct is not none %}{{ day.probability_pct }}%{% else %}—{% endif %}</span>
-                    <span class="plan-action">{{ t('plan.action_' ~ day.action) }}</span>
-                  </div>
-                {% endfor %}
+          <div class="plan-days" role="list" aria-label="{{ t('plan.title') }}">
+            {% for day in decision.plan.days %}
+              <div class="plan-day plan-day--{{ day.action }}{% if day.phase == 'climate' %} is-climate{% endif %}{% if day.is_today %} is-today{% endif %}"
+                   role="listitem"
+                   data-plan-day
+                   data-plan-phase="{{ day.phase }}"
+                   data-plan-action="{{ day.action }}"
+                   aria-label="{{ day.weekday }} {{ day.label }}: {{ day.weather_label }}{% if day.probability_pct is not none %}, {{ day.probability_pct }}{{ t('common.percent') }} {% if day.phase == 'climate' %}{{ t('plan.climate_chance') }}{% else %}{{ t('forecast.rain_chance') }}{% endif %}{% endif %}, {{ t('plan.action_' ~ day.action) }}">
+                <span class="plan-weekday">{{ day.weekday }}</span>
+                <span class="plan-date">{{ day.label }}</span>
+                <span class="plan-icon">{{ icon(day.icon, 18) }}</span>
+                <span class="plan-probability">{% if day.probability_pct is not none %}{{ day.probability_pct }}%{% else %}—{% endif %}</span>
+                <span class="plan-action">{{ t('plan.action_' ~ day.action) }}</span>
               </div>
             {% endfor %}
           </div>

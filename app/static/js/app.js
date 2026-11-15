@@ -40,52 +40,6 @@
     });
   }
 
-  // ---- Interactive daily forecast ----
-  var weatherDays = document.querySelectorAll("[data-weather-day]");
-  var weatherScene = document.querySelector("[data-weather-scene]");
-  var weatherLabel = document.querySelector("[data-weather-label]");
-  var weatherCaption = document.querySelector("[data-weather-caption]");
-  var weatherProbability = document.querySelector("[data-weather-probability]");
-
-  for (var dayIndex = 0; dayIndex < weatherDays.length; dayIndex += 1) {
-    weatherDays[dayIndex].addEventListener("click", function () {
-      var condition = this.getAttribute("data-condition");
-      var label = this.getAttribute("data-label");
-      var caption = this.getAttribute("data-caption");
-      var probability = this.getAttribute("data-probability");
-      var selectedIcon = this.querySelector(".weather-day-icon .icon");
-
-      for (var selectedIndex = 0; selectedIndex < weatherDays.length; selectedIndex += 1) {
-        var isSelected = weatherDays[selectedIndex] === this;
-        weatherDays[selectedIndex].setAttribute("aria-pressed", String(isSelected));
-        weatherDays[selectedIndex].classList.toggle("is-active", isSelected);
-      }
-
-      if (weatherScene && selectedIcon) {
-        var icon = selectedIcon.cloneNode(true);
-        icon.setAttribute("width", "64");
-        icon.setAttribute("height", "64");
-        while (weatherScene.firstChild) {
-          weatherScene.removeChild(weatherScene.firstChild);
-        }
-        weatherScene.appendChild(icon);
-        weatherScene.className = "weather-art weather-art--" + condition;
-        var probabilityText = probability && weatherProbability
-          ? ", " + probability + "% " + weatherProbability.getAttribute("data-label")
-          : "";
-        weatherScene.setAttribute("aria-label", label + ", " + caption + probabilityText);
-      }
-      if (weatherLabel) weatherLabel.textContent = label;
-      if (weatherCaption) weatherCaption.textContent = caption;
-      if (weatherProbability) {
-        weatherProbability.hidden = !probability;
-        weatherProbability.textContent = probability
-          ? probability + "% " + weatherProbability.getAttribute("data-label")
-          : "";
-      }
-    });
-  }
-
   // ---- Toast ----
   var toast = document.getElementById("toast");
   var toastTimer = null;

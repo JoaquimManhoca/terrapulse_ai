@@ -23,7 +23,7 @@ def test_decision_page_has_selector_and_no_details(client):
     assert 'class="decision-recommendation"' in html
     assert 'class="weather-art weather-art--' in html
     assert 'data-weather-probability' in html
-    assert 'class="forecast-unavailable"' in html
+    assert 'class="plan-days"' in html
     assert 'class="reason-list"' not in html
     assert 'class="sparkline"' not in html
 
@@ -131,33 +131,39 @@ def test_theme_toggle_defaults_to_light(client):
     assert 'aria-label="Alternar tema claro/escuro"' in html
 
 
-def test_decision_page_renders_selectable_daily_weather(client, app, monkeypatch):
-    from datetime import date
+def test_decision_page_uses_30_day_plan_instead_of_7_day_forecast(
+    client, app, monkeypatch
+):
+    from datetime import date, timedelta
 
     from app.services import decision as decision_service
 
     app.config["FORECAST_ENABLED"] = True
-    monkeypatch.setattr(decision_service, "_local_today", lambda: date(2025, 1, 1))
+    today = date(2025, 1, 1)
+    monkeypatch.setattr(decision_service, "_local_today", lambda: today)
     monkeypatch.setattr(
         decision_service,
         "fetch_open_meteo",
         lambda: {
             "source": "open-meteo",
             "rows": [
-                {"date": "2025-01-01", "weather_code": 0, "precip_mm": 0, "probability_pct": 5},
-                {"date": "2025-01-02", "weather_code": 2, "precip_mm": 0, "probability_pct": 10},
-                {"date": "2025-01-03", "weather_code": 3, "precip_mm": 0, "probability_pct": 20},
-                {"date": "2025-01-04", "weather_code": 61, "precip_mm": 4, "probability_pct": 80},
+                {
+                    "date": (today + timedelta(days=offset)).isoformat(),
+                    "weather_code": 0,
+                    "precip_mm": 0,
+                    "probability_pct": 5,
+                }
+                for offset in range(4)
             ],
         },
     )
 
     html = client.get("/").get_data(as_text=True)
-    assert 'class="weather-forecast"' in html
-    assert 'data-weather-day' in html
-    for condition in ("sunny", "partly-cloudy", "cloudy", "rainy"):
-        assert f'data-condition="{condition}"' in html
-    assert 'data-probability="5"' in html
+
+    assert 'class="weather-forecast"' not in html
+    assert 'data-weather-day' not in html
+    assert 'class="plan-days"' in html
+    assert html.count("data-plan-day") == 30
 
 
 def test_decision_page_renders_30_day_plan_and_trust(client, app, monkeypatch):
@@ -210,7 +216,7 @@ def test_stale_decision_page_hides_forecast(client, app, monkeypatch):
     html = client.get("/").get_data(as_text=True)
     assert "Dados desatualizados" in html
     assert 'class="weather-forecast"' not in html
-    assert "Previsão suspensa até os dados de chuva serem atualizados." in html
+    assert "plan-note--warn" in html
     assert "Sem previs" in html
     assert 'data-plan-phase="climate"' in html
 

@@ -498,7 +498,6 @@ def _plan_summary(
 
     return {
         "days": days,
-        "weeks": [days[index:index + 7] for index in range(0, len(days), 7)],
         "forecast_days": forecast_days,
         "climate_days": climate_days,
         "best_window_start": _plan_date(reference_day, best_window_start),
