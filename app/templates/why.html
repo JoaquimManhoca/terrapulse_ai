@@ -24,7 +24,7 @@
         {% for prob in probabilities %}
           <div class="prob-row">
             <div class="prob-top">
-              <span class="prob-label">{{ t(prob.key) }}{% if prob.is_ml %} · ML{% endif %}</span>
+              <span class="prob-label">{{ t(prob.key) }} · {% if prob.is_ml %}ML{% else %}{{ t('common.rule') }}{% endif %}</span>
               <span class="prob-value">{{ prob.pct }}{{ t('common.percent') }}</span>
             </div>
             <div class="prob-bar {{ prob.cls }}" role="img" aria-label="{{ t(prob.key) }} {{ prob.pct }}{{ t('common.percent') }}">
