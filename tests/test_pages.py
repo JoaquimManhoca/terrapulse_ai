@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 
 def test_pages_render(client):
     for path in ("/", "/porque", "/historico", "/sobre"):
@@ -65,6 +67,61 @@ def test_language_switch(client):
     assert response.status_code == 200
     assert b'lang="chitewe"' in response.data
     assert "Sarudzo".encode() in response.data
+
+
+def test_english_translates_every_page(client):
+    expected = {
+        "/": "Decision",
+        "/porque": "Why this decision?",
+        "/historico": "Rain history",
+        "/analise": "Climate analysis",
+        "/sobre": "About TerraPulse AI",
+    }
+    for path, text in expected.items():
+        html = client.get(f"{path}?lang=en").get_data(as_text=True)
+        assert 'lang="en"' in html, path
+        assert text in html, path
+        assert "Navegação principal" not in html, path
+
+
+@pytest.mark.parametrize(
+    "lang,expected",
+    [
+        (
+            "chitewe",
+            {
+                "/": "Sarudzo yekudyara",
+                "/porque": "Nei sarudzo iyi?",
+                "/historico": "Nhoroondo yemvura",
+                "/analise": "Ongororo yemamiriro ekunze",
+                "/sobre": "Nezve TerraPulse AI",
+            },
+        ),
+        (
+            "sena",
+            {
+                "/": "Chisankho cha kudyala",
+                "/porque": "Ngani chisankho ichi?",
+                "/historico": "Mbiri ya mvura",
+                "/analise": "Ongororo ya mamiriro ekunze",
+                "/sobre": "Za TerraPulse AI",
+            },
+        ),
+    ],
+)
+def test_local_languages_translate_every_page(client, lang, expected):
+    for path, text in expected.items():
+        html = client.get(f"{path}?lang={lang}").get_data(as_text=True)
+        assert f'lang="{lang}"' in html, path
+        assert text in html, path
+        assert "Navegação principal" not in html, path
+
+
+def test_english_translates_analysis_chart_labels(client):
+    html = client.get("/analise?lang=en").get_data(as_text=True)
+    assert "Total rainfall by rainy season, 1998 to 2024" in html
+    assert "Rainfall (mm)" in html
+    assert "IC 95%" not in html
 
 
 def test_theme_toggle_defaults_to_light(client):
@@ -157,6 +214,17 @@ def test_language_switch_returns_to_same_origin(client):
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/porque")
+
+
+def test_language_switch_drops_old_lang_parameter(client):
+    response = client.get(
+        "/language/en",
+        headers={"Referer": "http://localhost/analise?lang=pt&region=manica"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/analise?region=manica")
 
 
 def test_manifest_and_service_worker(client):

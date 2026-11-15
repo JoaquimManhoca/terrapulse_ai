@@ -19,10 +19,10 @@
       <div class="stat">
         <span class="stat-label">{{ t('analysis.sen_slope') }}</span>
         <strong>{{ '%.1f'|format(sections.seasonal.sen.slope) }} {{ t('analysis.mm_per_season') }}</strong>
-        <em>IC 95%: {{ '%.1f'|format(sections.seasonal.sen.ci_low) }} … {{ '%.1f'|format(sections.seasonal.sen.ci_high) }}</em>
+        <em>{{ t('common.ci95') }}: {{ '%.1f'|format(sections.seasonal.sen.ci_low) }} … {{ '%.1f'|format(sections.seasonal.sen.ci_high) }}</em>
       </div>
       <div class="stat">
-        <span class="stat-label">Mann-Kendall (p)</span>
+        <span class="stat-label">{{ t('analysis.mann_kendall') }}</span>
         <strong>{{ '%.3f'|format(sections.seasonal.mk.p_value) }}</strong>
         {% if sections.seasonal.mk.trend == 'no_trend' %}
           <em class="badge badge-neutral">{{ t('analysis.no_trend') }}</em>
@@ -46,10 +46,10 @@
       <div class="stat">
         <span class="stat-label">{{ t('analysis.sen_slope') }}</span>
         <strong>{{ '%.1f'|format(sections.november.sen.slope) }} {{ t('analysis.mm_per_year') }}</strong>
-        <em>IC 95%: {{ '%.1f'|format(sections.november.sen.ci_low) }} … {{ '%.1f'|format(sections.november.sen.ci_high) }}</em>
+        <em>{{ t('common.ci95') }}: {{ '%.1f'|format(sections.november.sen.ci_low) }} … {{ '%.1f'|format(sections.november.sen.ci_high) }}</em>
       </div>
       <div class="stat">
-        <span class="stat-label">Mann-Kendall (p)</span>
+        <span class="stat-label">{{ t('analysis.mann_kendall') }}</span>
         <strong>{{ '%.3f'|format(sections.november.mk.p_value) }}</strong>
         {% if sections.november.mk.trend == 'no_trend' %}
           <em class="badge badge-neutral">{{ t('analysis.no_trend') }}</em>
@@ -109,7 +109,7 @@
       <div class="stat">
         <span class="stat-label">{{ t('analysis.difference') }}</span>
         <strong>{{ '%+.0f'|format(sections.comparison.comparison.difference) }} {{ t('common.mm') }}</strong>
-        <em>IC 95%: {{ '%.0f'|format(sections.comparison.comparison.difference_ci_low) }} … {{ '%.0f'|format(sections.comparison.comparison.difference_ci_high) }}</em>
+        <em>{{ t('common.ci95') }}: {{ '%.0f'|format(sections.comparison.comparison.difference_ci_low) }} … {{ '%.0f'|format(sections.comparison.comparison.difference_ci_high) }}</em>
       </div>
     </div>
     <p class="panel-note">{{ t('analysis.comparison_note') }}</p>
@@ -127,13 +127,13 @@
       {% set metrics = sections.model.metrics %}
       {% if metrics.validation %}
       <div class="stat">
-        <span class="stat-label">ROC-AUC (validação)</span>
+        <span class="stat-label">{{ t('analysis.roc_validation') }}</span>
         <strong>{{ '%.3f'|format(metrics.validation.roc_auc) }}</strong>
       </div>
       {% endif %}
       {% if metrics.test %}
       <div class="stat">
-        <span class="stat-label">ROC-AUC (teste)</span>
+        <span class="stat-label">{{ t('analysis.roc_test') }}</span>
         <strong>{{ '%.3f'|format(metrics.test.roc_auc) }}</strong>
       </div>
       {% endif %}

@@ -10,6 +10,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..config import Config
+from ..i18n import translate
 from ..ml.onset import detect_onsets
 from ..ml.persistence import load_active_model
 from ..services import climate_analysis as ca
@@ -20,7 +21,7 @@ MIN_REAL_PCT = 90.0
 NOVEMBER_MONTH = 11
 
 
-def seasonal_view() -> dict | None:
+def seasonal_view(lang: str = "pt") -> dict | None:
     """Section 1+2: seasonal totals with moving average and Sen trend line."""
     seasons = seasonal_totals()
     usable = [s for s in seasons if s["real_pct"] >= MIN_REAL_PCT]
@@ -77,7 +78,7 @@ def _trend_line_points(values: list[float], slope: dict) -> list[tuple[float, fl
     return [(i, intercept + gradient * i) for i in range(n)]
 
 
-def november_view() -> dict | None:
+def november_view(lang: str = "pt") -> dict | None:
     """Section 2b: November (onset month) totals and trend."""
     months = monthly_totals_by_month(NOVEMBER_MONTH)
     usable = [m for m in months if m["real_pct"] >= MIN_REAL_PCT]
@@ -93,7 +94,7 @@ def november_view() -> dict | None:
         {
             "value": totals[i],
             "label": f"{years[i] % 100:02d}",
-            "title": f"Nov {years[i]}: {totals[i]:.0f} mm",
+            "title": f"{translate('chart.month.nov', lang)} {years[i]}: {totals[i]:.0f} mm",
             "cls": "chart-bar-fill chart-bar-amber",
         }
         for i in range(len(totals))
@@ -107,7 +108,7 @@ def november_view() -> dict | None:
     }
 
 
-def climatology_view() -> list[dict] | None:
+def climatology_view(lang: str = "pt") -> list[dict] | None:
     """Section 3: p10/median/p90 of monthly totals per season (Oct..Mar)."""
     rows = load_daily()
     if rows.empty:
@@ -120,7 +121,14 @@ def climatology_view() -> list[dict] | None:
     if counts.min() < 3:
         return None
 
-    names = {10: "Out", 11: "Nov", 12: "Dez", 1: "Jan", 2: "Fev", 3: "Mar"}
+    names = {
+        10: translate("chart.month.oct", lang),
+        11: translate("chart.month.nov", lang),
+        12: translate("chart.month.dec", lang),
+        1: translate("chart.month.jan", lang),
+        2: translate("chart.month.feb", lang),
+        3: translate("chart.month.mar", lang),
+    }
     bands = []
     for month in (10, 11, 12, 1, 2, 3):
         p10 = _quantile_month(frame, month, 0.10)
@@ -133,7 +141,12 @@ def climatology_view() -> list[dict] | None:
                 "p10": p10,
                 "median": median,
                 "p90": p90,
-                "title": f"{names[month]}: mediana {median:.0f} mm/mês (p10 {p10:.0f}, p90 {p90:.0f})",
+                "title": translate("chart.climatology_tooltip", lang).format(
+                    month=names[month],
+                    median=f"{median:.0f}",
+                    p10=f"{p10:.0f}",
+                    p90=f"{p90:.0f}",
+                ),
             }
         )
     return bands
@@ -145,7 +158,7 @@ def _quantile_month(frame: pd.DataFrame, month: int, q: float) -> float:
     return float(by_year.quantile(q))
 
 
-def onset_calendar_view() -> dict | None:
+def onset_calendar_view(lang: str = "pt") -> dict | None:
     """Section 4: first effective onset per season + median/quartiles."""
     frame = load_daily()
     if frame.empty:
@@ -205,11 +218,20 @@ def onset_calendar_view() -> dict | None:
                 "value": s["day_of_season"],
                 "title": (
                     (
-                        f"{s['season']}/{(s['season'] + 1) % 100:02d}: início em {s['onset']}"
-                        + ("" if s["effective"] else " (falhou)")
+                        translate("chart.onset_tooltip", lang).format(
+                            season=f"{s['season']}/{(s['season'] + 1) % 100:02d}",
+                            date=s["onset"],
+                        )
+                        + (
+                            ""
+                            if s["effective"]
+                            else " " + translate("chart.onset_failed", lang)
+                        )
                     )
                     if s["onset"]
-                    else f"{s['season']}/{(s['season'] + 1) % 100:02d}: sem início detectado"
+                    else translate("chart.onset_none", lang).format(
+                        season=f"{s['season']}/{(s['season'] + 1) % 100:02d}"
+                    )
                 ),
                 "cls": (
                     "chart-dot chart-dot-fail" if not s["effective"] else "chart-dot"
@@ -227,7 +249,7 @@ def onset_calendar_view() -> dict | None:
     }
 
 
-def period_comparison_view() -> dict | None:
+def period_comparison_view(lang: str = "pt") -> dict | None:
     """Section 5: recent vs baseline season totals with 95% CIs."""
     seasons = [s for s in seasonal_totals() if s["real_pct"] >= MIN_REAL_PCT]
     totals = [float(s["total_mm"]) for s in seasons]
@@ -249,8 +271,15 @@ def period_comparison_view() -> dict | None:
             "ci_low": recent_ci["ci_low"],
             "ci_high": recent_ci["ci_high"],
             "cls": "chart-bar-fill chart-bar-amber",
-            "title": f"Últimas {len(recent)} épocas: média {recent_ci['mean']:.0f} mm (IC 95% {recent_ci['ci_low']:.0f}-{recent_ci['ci_high']:.0f})",
-            "tick": "últimas 10",
+            "title": translate(
+                "chart.comparison_recent_tooltip", lang
+            ).format(
+                count=len(recent),
+                mean=f"{recent_ci['mean']:.0f}",
+                low=f"{recent_ci['ci_low']:.0f}",
+                high=f"{recent_ci['ci_high']:.0f}",
+            ),
+            "tick": translate("chart.comparison_recent_tick", lang),
         },
         {
             "label": f"{baseline_ci['mean']:.0f}",
@@ -258,8 +287,14 @@ def period_comparison_view() -> dict | None:
             "ci_low": baseline_ci["ci_low"],
             "ci_high": baseline_ci["ci_high"],
             "cls": "chart-bar-fill",
-            "title": f"Épocas anteriores: média {baseline_ci['mean']:.0f} mm (IC 95% {baseline_ci['ci_low']:.0f}-{baseline_ci['ci_high']:.0f})",
-            "tick": "anteriores",
+            "title": translate(
+                "chart.comparison_baseline_tooltip", lang
+            ).format(
+                mean=f"{baseline_ci['mean']:.0f}",
+                low=f"{baseline_ci['ci_low']:.0f}",
+                high=f"{baseline_ci['ci_high']:.0f}",
+            ),
+            "tick": translate("chart.comparison_baseline_tick", lang),
         },
     ]
     return {
@@ -270,7 +305,7 @@ def period_comparison_view() -> dict | None:
     }
 
 
-def model_view() -> dict | None:
+def model_view(lang: str = "pt") -> dict | None:
     """Section 6: feature importances and holdout metrics of the active model."""
     loaded = load_active_model(Config.MODELS_DIR)
     if loaded is None:
@@ -287,9 +322,9 @@ def model_view() -> dict | None:
         )
         items = [
             {
-                "label": name,
+                "label": translate(f"feature.{name}", lang),
                 "pct": round(100.0 * float(value) / total, 1),
-                "title": f"{name}: {100.0 * float(value) / total:.1f}%",
+                "title": f"{translate(f'feature.{name}', lang)}: {100.0 * float(value) / total:.1f}%",
             }
             for name, value in ranked
         ]

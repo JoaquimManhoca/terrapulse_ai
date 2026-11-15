@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from string import Formatter
+
 import pytest
 
-from app.i18n import LANGUAGES, SUPPORTED_LANGUAGES, get_catalog, translate
+from app.i18n import (
+    LANGUAGES,
+    SUPPORTED_LANGUAGES,
+    TRANSLATIONS,
+    get_catalog,
+    translate,
+)
 
 
 @pytest.mark.parametrize("lang", SUPPORTED_LANGUAGES)
@@ -28,9 +36,35 @@ def test_catalog_has_core_keys(lang):
         assert catalog[key]
 
 
-def test_fallback_to_portuguese():
+def test_every_catalog_is_complete():
+    reference = set(TRANSLATIONS["pt"])
+    for lang in SUPPORTED_LANGUAGES:
+        catalog = TRANSLATIONS[lang]
+        assert set(catalog) == reference, lang
+        assert all(catalog[key] for key in reference), lang
+
+
+def test_placeholders_match_reference():
+    formatter = Formatter()
+    for key, reference in TRANSLATIONS["pt"].items():
+        expected = {
+            field
+            for _, field, _, _ in formatter.parse(reference)
+            if field is not None
+        }
+        for lang in SUPPORTED_LANGUAGES:
+            actual = {
+                field
+                for _, field, _, _ in formatter.parse(TRANSLATIONS[lang][key])
+                if field is not None
+            }
+            assert actual == expected, (lang, key)
+
+
+def test_language_override_is_used():
     assert translate("state.plant_now", "chitewe") == "Dyara zvino"
-    assert translate("common.last_14_days", "chitewe") == "últimos 14 dias"
+    assert translate("common.last_14_days", "chitewe") == "mazuva 14 apfuura"
+    assert translate("common.last_14_days", "en") == "last 14 days"
 
 
 def test_missing_key_returns_key():
@@ -39,5 +73,6 @@ def test_missing_key_returns_key():
 
 def test_review_status_is_honest():
     assert LANGUAGES["pt"]["reviewed"] is True
+    assert LANGUAGES["en"]["reviewed"] is True
     assert LANGUAGES["chitewe"]["reviewed"] is False
     assert LANGUAGES["sena"]["reviewed"] is False

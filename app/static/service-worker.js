@@ -1,5 +1,5 @@
 /* TerraPulse AI service worker — offline shell for low-connectivity areas. */
-const CACHE = "terrapulse-v10";
+const CACHE = "terrapulse-v11";
 const PRECACHE = [
   "/",
   "/porque",
@@ -53,6 +53,17 @@ self.addEventListener("activate", function (event) {
   );
 });
 
+function offlineMessage() {
+  const language = (
+    (self.navigator && self.navigator.language) ||
+    "pt"
+  ).toLowerCase();
+  if (language.indexOf("pt") === 0) {
+    return "Sem ligação. A mostrar a última decisão guardada.";
+  }
+  return "Offline. Showing the last saved decision.";
+}
+
 function putIfOk(request, response) {
   if (!response || !response.ok) return;
   const copy = response.clone();
@@ -84,7 +95,7 @@ self.addEventListener("fetch", function (event) {
                 JSON.stringify({
                   error: {
                     code: "offline",
-                    message: "Sem ligação. A mostrar a última decisão guardada."
+                    message: offlineMessage()
                   }
                 }),
                 {

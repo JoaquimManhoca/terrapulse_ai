@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import (
     Flask,
@@ -48,7 +48,14 @@ def _safe_referrer() -> str | None:
         return None
     if (parts.netloc or "").lower() != request.host.lower():
         return None
-    return referrer
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key != "lang"
+    ]
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+    )
 
 
 def create_app(config_object: type[Config] = Config) -> Flask:
@@ -267,7 +274,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
         return render_template(
             "history.html",
             monthly=monthly_totals(24),
-            seasons=season_monthly_totals(),
+            seasons=season_monthly_totals(lang=g.lang),
             data_status=data_status(),
             last_updated=last_updated(),
         )
@@ -284,69 +291,70 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             seasonal_view,
         )
 
+        lang = g.lang
         sections = {
-            "seasonal": seasonal_view(),
-            "november": november_view(),
-            "climatology": climatology_view(),
-            "onset": onset_calendar_view(),
-            "comparison": period_comparison_view(),
-            "model": model_view(),
+            "seasonal": seasonal_view(lang),
+            "november": november_view(lang),
+            "climatology": climatology_view(lang),
+            "onset": onset_calendar_view(lang),
+            "comparison": period_comparison_view(lang),
+            "model": model_view(lang),
         }
         charts_out = {
             "seasonal": charts.bar_chart(
                 sections["seasonal"]["bars"],
                 line=sections["seasonal"]["trend_line"],
-                line_label="Tendência (Sen)",
-                aria_label="Total de chuva por época chuvosa, 1998 a 2024",
+                line_label=translate("chart.sen_trend", lang),
+                aria_label=translate("chart.seasonal_aria", lang),
                 y_max=sections["seasonal"]["y_max"],
                 label_step=2,
-                x_label="Época chuvosa",
-                y_label="Precipitação (mm)",
+                x_label=translate("chart.season_x", lang),
+                y_label=translate("chart.precip_mm", lang),
             )
             if sections["seasonal"]
             else "",
             "november": charts.bar_chart(
                 sections["november"]["bars"],
                 line=sections["november"]["trend_line"],
-                line_label="Tendência (Sen)",
-                aria_label="Total de chuva de novembro por época",
+                line_label=translate("chart.sen_trend", lang),
+                aria_label=translate("chart.november_aria", lang),
                 y_max=sections["november"]["y_max"],
                 label_step=2,
-                x_label="Ano",
-                y_label="Precipitação em novembro (mm)",
+                x_label=translate("chart.year_x", lang),
+                y_label=translate("chart.november_y", lang),
             )
             if sections["november"]
             else "",
             "climatology": charts.band_chart(
                 sections["climatology"],
-                aria_label="Climatologia mensal da época chuvosa",
-                x_label="Mês",
-                y_label="Precipitação mensal (mm)",
+                aria_label=translate("chart.climatology_aria", lang),
+                x_label=translate("chart.month_x", lang),
+                y_label=translate("chart.monthly_y", lang),
             )
             if sections["climatology"]
             else "",
             "onset": charts.strip_chart(
                 sections["onset"]["rows"],
-                aria_label="Dia do início efetivo da chuva por época",
+                aria_label=translate("chart.onset_aria", lang),
                 median=sections["onset"]["median"],
-                x_label="Data de início",
-                y_label="Época chuvosa",
+                x_label=translate("chart.onset_x", lang),
+                y_label=translate("chart.season_x", lang),
             )
             if sections["onset"] and sections["onset"]["median"] is not None
             else "",
             "comparison": charts.error_bar_chart(
                 sections["comparison"]["groups"],
-                aria_label="Comparação da média de chuva entre períodos",
-                x_label="Período",
-                y_label="Precipitação média (mm)",
+                aria_label=translate("chart.comparison_aria", lang),
+                x_label=translate("chart.period_x", lang),
+                y_label=translate("chart.mean_y", lang),
             )
             if sections["comparison"]
             else "",
             "importances": charts.hbar_chart(
                 sections["model"]["importances"],
-                aria_label="Importância das variáveis no modelo Random Forest",
-                x_label="Importância relativa (%)",
-                y_label="Variável",
+                aria_label=translate("chart.importance_aria", lang),
+                x_label=translate("chart.importance_x", lang),
+                y_label=translate("chart.variable_y", lang),
             )
             if sections["model"] and sections["model"]["importances"]
             else "",

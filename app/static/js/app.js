@@ -107,9 +107,14 @@
 
   var voiceLang = {
     pt: "pt-PT",
+    en: "en-US",
     chitewe: "pt-PT",
     sena: "pt-PT"
   };
+
+  function translatedMessage(name, fallback) {
+    return (document.body && document.body.getAttribute("data-i18n-" + name)) || fallback;
+  }
 
   function pickVoice(lang) {
     var voices = window.speechSynthesis.getVoices();
@@ -124,7 +129,12 @@
 
   function speak(text, lang) {
     if (!canSpeak) {
-      showToast("O seu telemóvel não suporta leitura em voz alta.");
+      showToast(
+        translatedMessage(
+          "speech-unsupported",
+          "O seu telemóvel não suporta leitura em voz alta."
+        )
+      );
       return;
     }
     if (window.speechSynthesis.speaking) {
@@ -138,8 +148,13 @@
     var voice = pickVoice(utterance.lang);
     if (voice) utterance.voice = voice;
     window.speechSynthesis.speak(utterance);
-    if (lang !== "pt") {
-      showToast("Voz local ainda não disponível; a ler em português.");
+    if (lang !== "pt" && lang !== "en") {
+      showToast(
+        translatedMessage(
+          "local-voice",
+          "Voz local ainda não disponível; a ler com a voz padrão."
+        )
+      );
     }
   }
 

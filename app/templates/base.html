@@ -24,7 +24,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
-<body>
+<body
+  data-i18n-speech-unsupported="{{ t('js.speech_unsupported') }}"
+  data-i18n-local-voice="{{ t('js.local_voice_unavailable') }}">
   <a class="skip-link" href="#main">{{ t('common.skip') }}</a>
 
   <header class="app-header">
@@ -100,7 +102,7 @@
     </div>
   </main>
 
-  <nav class="bottom-nav" aria-label="Navegação principal">
+  <nav class="bottom-nav" aria-label="{{ t('nav.menu') }}">
     {% from "_icons.html" import icon %}
     {% set path = request.path %}
     <a class="nav-item {% if path == '/' %}is-active{% endif %}" href="{{ url_for('index') }}" {% if path == '/' %}aria-current="page"{% endif %}>

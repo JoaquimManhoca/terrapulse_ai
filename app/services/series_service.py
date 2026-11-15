@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..extensions import db
+from ..i18n import translate
 from ..models import DailyObservation
 
 
@@ -131,10 +132,17 @@ def yearly_totals() -> list[dict]:
     return result
 
 
-SEASON_MONTHS = ((10, "Out"), (11, "Nov"), (12, "Dez"), (1, "Jan"), (2, "Fev"), (3, "Mar"))
+SEASON_MONTHS = (
+    (10, "chart.month.oct"),
+    (11, "chart.month.nov"),
+    (12, "chart.month.dec"),
+    (1, "chart.month.jan"),
+    (2, "chart.month.feb"),
+    (3, "chart.month.mar"),
+)
 
 
-def season_monthly_totals() -> list[dict]:
+def season_monthly_totals(lang: str = "pt") -> list[dict]:
     """Per rainy season: Oct-Mar monthly totals with bar heights.
 
     Each row: {season, label, total_mm, days, real_pct, chip, months}.
@@ -158,10 +166,12 @@ def season_monthly_totals() -> list[dict]:
     for item in seasons:
         season = int(item["season"])
         months = []
-        for month, label in SEASON_MONTHS:
+        for month, label_key in SEASON_MONTHS:
             year = season if month >= 10 else season + 1
             total = round(lookup.get((year, month), 0.0), 1)
-            months.append({"label": label, "total_mm": total})
+            months.append(
+                {"label": translate(label_key, lang), "total_mm": total}
+            )
         peak = max((m["total_mm"] for m in months), default=1.0) or 1.0
         for entry in months:
             entry["height"] = max(2, round(entry["total_mm"] / peak * 100))
