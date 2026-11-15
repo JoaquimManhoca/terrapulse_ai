@@ -111,6 +111,62 @@
         <p class="forecast-unavailable">{{ t('forecast.unavailable') }}</p>
       {% endif %}
 
+      {% if decision.plan and decision.plan.days %}
+        <section class="planting-plan" aria-labelledby="planting-plan-title">
+          <div class="plan-head">
+            <div>
+              <h2 id="planting-plan-title">{{ t('plan.title') }}</h2>
+              <p class="plan-sub">{{ t('plan.subtitle').format(forecast_days=decision.plan.forecast_days, climate_days=decision.plan.climate_days, years=decision.plan.climate_years) }}</p>
+            </div>
+            <div class="plan-window">
+              <span>{{ t('plan.best_window') }}</span>
+              <strong>{% if decision.plan.best_window_start %}{{ decision.plan.best_window_start }}{% if decision.plan.best_window_end and decision.plan.best_window_end != decision.plan.best_window_start %} – {{ decision.plan.best_window_end }}{% endif %}{% else %}{{ t('plan.no_window') }}{% endif %}</strong>
+              {% if decision.plan.next_check %}
+                <small>{{ t('plan.next_check') }}: {{ decision.plan.next_check }}</small>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="plan-legend" aria-hidden="true">
+            <span class="plan-legend-source plan-legend-source--forecast">{{ t('plan.forecast') }}</span>
+            <span class="plan-legend-source plan-legend-source--climate">{{ t('plan.climatology') }}</span>
+            <span class="plan-legend-spacer"></span>
+            {% for action in ('plant', 'prepare', 'wait', 'monitor') %}
+              <span class="plan-legend-action plan-legend-action--{{ action }}">{{ t('plan.action_' ~ action) }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="plan-weeks">
+            {% for week in decision.plan.weeks %}
+              <div class="plan-week">
+                {% for day in week %}
+                  <div class="plan-day plan-day--{{ day.action }}{% if day.phase == 'climate' %} is-climate{% endif %}{% if day.is_today %} is-today{% endif %}"
+                       data-plan-day
+                       data-plan-phase="{{ day.phase }}"
+                       data-plan-action="{{ day.action }}"
+                       aria-label="{{ day.weekday }} {{ day.label }}: {{ day.weather_label }}{% if day.probability_pct is not none %}, {{ day.probability_pct }}{{ t('common.percent') }} {% if day.phase == 'climate' %}{{ t('plan.climate_chance') }}{% else %}{{ t('forecast.rain_chance') }}{% endif %}{% endif %}, {{ t('plan.action_' ~ day.action) }}">
+                    <span class="plan-weekday">{{ day.weekday }}</span>
+                    <span class="plan-date">{{ day.label }}</span>
+                    <span class="plan-icon">{{ icon(day.icon, 18) }}</span>
+                    <span class="plan-probability">{% if day.probability_pct is not none %}{{ day.probability_pct }}%{% else %}—{% endif %}</span>
+                    <span class="plan-action">{{ t('plan.action_' ~ day.action) }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if decision.plan.stale %}
+            <p class="plan-note plan-note--warn">{{ t('plan.stale_note') }}</p>
+          {% endif %}
+          {% if decision.plan.has_forecast %}
+            <p class="plan-note">{{ t('plan.note').format(forecast_days=decision.plan.forecast_days) }}</p>
+          {% else %}
+            <p class="plan-note">{{ t('plan.no_forecast_note') }}</p>
+          {% endif %}
+        </section>
+      {% endif %}
+
       <div class="confidence">
         <div class="confidence-top">
           <span>{{ t('decision.confidence') }}</span>
@@ -120,6 +176,53 @@
           <span style="width: {{ (decision.confidence * 100)|round|int }}%"></span>
         </div>
       </div>
+
+      {% if decision.trust %}
+        <details class="trust-card">
+          <summary class="trust-summary">
+            <span class="trust-summary-icon">{{ icon('info', 20) }}</span>
+            <span class="trust-summary-copy">
+              <strong>{{ t('trust.title') }}</strong>
+              <small>{{ t('trust.summary').format(level=t('common.' ~ decision.trust.level), pct=(decision.confidence * 100)|round|int) }}</small>
+            </span>
+            <span class="trust-chevron">{{ icon('chevron', 16) }}</span>
+          </summary>
+          <div class="trust-body">
+            <dl class="trust-grid">
+              <div>
+                <dt>{{ t('trust.source') }}</dt>
+                <dd>{{ decision.trust.sources_label or t('trust.unknown') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.coverage') }}</dt>
+                <dd>{% if decision.trust.coverage_pct is not none %}{{ decision.trust.coverage_pct }}{{ t('common.percent') }}{% else %}—{% endif %}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.observations') }}</dt>
+                <dd>{{ decision.trust.observation_days }} {{ t('common.days') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.history') }}</dt>
+                <dd>{{ t('trust.years').format(years=decision.trust.history_years) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.forecast') }}</dt>
+                <dd>{% if decision.trust.forecast_days %}{{ t('trust.forecast_value').format(days=decision.trust.forecast_days, source=decision.trust.forecast_source) }}{% else %}{{ t('trust.forecast_none') }}{% endif %}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.model') }}</dt>
+                <dd>{{ decision.trust.model_version }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('trust.age') }}</dt>
+                <dd>{{ t('trust.days').format(days=decision.trust.data_age_days) }}</dd>
+              </div>
+            </dl>
+            <p class="trust-change"><strong>{{ t('trust.change_title') }}:</strong> {{ decision.trust.change }}</p>
+            <p class="trust-note">{{ t('trust.note') }}</p>
+          </div>
+        </details>
+      {% endif %}
 
       <button class="btn-listen" type="button" data-listen aria-label="{{ t('decision.listen') }}">
         {{ icon('speaker', 22) }}<span>{{ t('decision.listen') }}</span>

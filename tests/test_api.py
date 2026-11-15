@@ -91,6 +91,83 @@ def test_forecast_summary_ignores_past_rows(monkeypatch):
     ]
 
 
+def test_decision_plan_has_forecast_and_climatology(client, app, monkeypatch):
+    from datetime import date, timedelta
+
+    from app.services import decision as decision_service
+
+    app.config["FORECAST_ENABLED"] = True
+    today = date(2025, 1, 5)
+    monkeypatch.setattr(decision_service, "_local_today", lambda: today)
+    monkeypatch.setattr(
+        decision_service,
+        "fetch_open_meteo",
+        lambda: {
+            "source": "open-meteo",
+            "rows": [
+                {
+                    "date": (today + timedelta(days=offset)).isoformat(),
+                    "weather_code": 0,
+                    "precip_mm": 0.0,
+                    "probability_pct": 10,
+                }
+                for offset in range(16)
+            ],
+        },
+    )
+
+    payload = client.get("/api/decision").get_json()
+    plan = payload["plan"]
+
+    assert len(plan["days"]) == 30
+    assert plan["forecast_days"] == 16
+    assert plan["climate_days"] == 14
+    assert plan["days"][0]["phase"] == "forecast"
+    assert plan["days"][15]["phase"] == "forecast"
+    assert plan["days"][16]["phase"] == "climate"
+    assert plan["days"][16]["probability_pct"] is not None
+    assert plan["climate_years"] == 10
+
+
+def test_decision_plan_falls_back_to_climatology(client, app, monkeypatch):
+    from datetime import date
+
+    from app.services import decision as decision_service
+
+    app.config["FORECAST_ENABLED"] = False
+    monkeypatch.setattr(
+        decision_service, "_local_today", lambda: date(2025, 1, 5)
+    )
+
+    payload = client.get("/api/decision").get_json()
+    plan = payload["plan"]
+
+    assert plan["forecast_days"] == 0
+    assert plan["climate_days"] == 30
+    assert plan["has_forecast"] is False
+    assert all(day["phase"] == "climate" for day in plan["days"])
+
+
+def test_decision_trust_reports_sources_and_coverage(client, app, monkeypatch):
+    from datetime import date
+
+    from app.services import decision as decision_service
+
+    app.config["FORECAST_ENABLED"] = False
+    monkeypatch.setattr(
+        decision_service, "_local_today", lambda: date(2025, 1, 5)
+    )
+
+    trust = client.get("/api/decision").get_json()["trust"]
+
+    assert trust["sources_label"] == "IMERG Final"
+    assert trust["coverage_pct"] == 100.0
+    assert trust["observation_days"] > 0
+    assert trust["history_years"] == 10
+    assert trust["level"] in {"high", "medium", "low"}
+    assert trust["change"]
+
+
 def test_history_endpoint(client):
     response = client.get("/api/history?days=30")
     assert response.status_code == 200

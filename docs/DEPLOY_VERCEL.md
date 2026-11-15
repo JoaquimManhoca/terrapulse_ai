@@ -87,5 +87,5 @@ Functions. Atualiza os dados a partir de uma máquina/worker persistente e volta
 a executar o sincronizador.
 
 **Antes de disponibilizar aconselhamento:** a base local atual tem observações
-até 01/01/2026. Atualiza os dados IMERG; a aplicação exibe a data da última
+até 13/11/2026. Atualiza os dados IMERG; a aplicação exibe a data da última
 observação para deixar explícita a cobertura temporal.

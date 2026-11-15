@@ -160,6 +160,40 @@ def test_decision_page_renders_selectable_daily_weather(client, app, monkeypatch
     assert 'data-probability="5"' in html
 
 
+def test_decision_page_renders_30_day_plan_and_trust(client, app, monkeypatch):
+    from datetime import date, timedelta
+
+    from app.services import decision as decision_service
+
+    app.config["FORECAST_ENABLED"] = True
+    today = date(2025, 1, 5)
+    monkeypatch.setattr(decision_service, "_local_today", lambda: today)
+    monkeypatch.setattr(
+        decision_service,
+        "fetch_open_meteo",
+        lambda: {
+            "source": "open-meteo",
+            "rows": [
+                {
+                    "date": (today + timedelta(days=offset)).isoformat(),
+                    "weather_code": 0,
+                    "precip_mm": 0.0,
+                    "probability_pct": 10,
+                }
+                for offset in range(16)
+            ],
+        },
+    )
+
+    html = client.get("/?lang=en").get_data(as_text=True)
+
+    assert 'class="planting-plan"' in html
+    assert html.count("data-plan-day") == 30
+    assert "30-day plan" in html
+    assert "Data confidence and sources" in html
+    assert "Average coverage (30 days)" in html
+
+
 def test_stale_decision_page_hides_forecast(client, app, monkeypatch):
     from datetime import date
 
@@ -177,6 +211,8 @@ def test_stale_decision_page_hides_forecast(client, app, monkeypatch):
     assert "Dados desatualizados" in html
     assert 'class="weather-forecast"' not in html
     assert "Previsão suspensa até os dados de chuva serem atualizados." in html
+    assert "Sem previs" in html
+    assert 'data-plan-phase="climate"' in html
 
 
 def test_security_headers_are_present(client):

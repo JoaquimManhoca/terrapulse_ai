@@ -6,7 +6,7 @@ decidir **quando semear milho**, combinando observações de precipitação da N
 
 > **Estado: Fase 1 (em curso).** A aplicação usa apenas observações reais NASA
 > GPM IMERG; dados de demonstração e o respetivo modelo foram removidos. A base
-> local tem lacunas e a observação mais recente é de 01/01/2026. Não uses uma
+> local tem lacunas e a observação mais recente é de 13/11/2026. Não uses uma
 > decisão sem validar a data e a cobertura dos dados nem sem validação de campo.
 
 ## O problema
@@ -20,15 +20,19 @@ espero?**
 ## O que a aplicação faz
 
 - **Hoje** — seletor de cidade e cultura e recomendação única: `Plantar agora`,
-  `Esperar`, `Plantar em N dias` ou `Risco alto`, com confiança. Os detalhes
-  ficam em Porquê e Histórico.
+  `Esperar`, `Plantar em N dias` ou `Risco alto`, com confiança.
+- **Plano de 30 dias** — 16 dias de previsão Open-Meteo e 14 dias de
+  climatologia IMERG, com ações `Plantar`, `Preparar`, `Esperar` e `Monitorar`.
+- **Confiança e origem dos dados** — fonte, cobertura, observações, histórico,
+  previsão, modelo e o que mudaria a decisão.
 - **Porquê** — todos os sinais da decisão, chuva dos últimos 14 dias,
   climatologia histórica e previsão.
 - **Histórico** — totais mensais e anuais, origem dos dados e última atualização.
 - **Sobre** — fontes, metodologia, limitações e atribuição.
 - **PWA instalável** com cache offline do ecrã principal.
 - **Leitura em voz alta** (Web Speech API).
-- **Três línguas**: português (revisto), Chitewe e Sena (provisórias).
+- **Quatro línguas**: português e inglês (revistos), Chitewe e Sena
+  (provisórias).
 
 ## Arranque rápido (Windows PowerShell)
 
@@ -113,7 +117,7 @@ download-data/       grânulos NASA IMERG (.nc4) — ignorado no git
 app/
   __init__.py        app factory e rotas web
   config.py          configuração e regras agronómicas
-  i18n.py            catálogos PT / Chitewe / Sena
+  i18n.py            catálogos PT / EN / Chitewe / Sena
   ml/onset.py        deteção de onset e falso onset
   services/          série diária, ingestão IMERG, previsão, decisão e treino real
   api/               endpoints REST
@@ -145,8 +149,8 @@ de curto prazo é fornecida pela Open-Meteo.
 
 ## Limitações atuais
 
-- Cobertura real descontínua: a base local contém 6.288 observações IMERG
-  (6.271 Final e 17 Early), entre 02/09/1998 e 01/01/2026. Há lacunas e os dados
+- Cobertura real descontínua: a base local contém 6.680 observações IMERG
+  (6.271 Final e 409 Early), entre 02/09/1998 e 13/11/2026. Há lacunas e os dados
   não representam necessariamente o tempo atual.
 - Regra de onset heurística, ainda não calibrada com dados de campo de Manica.
 - IMERG Early tem maior incerteza do que o Final Run; a escala de 0,1° não

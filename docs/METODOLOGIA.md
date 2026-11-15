@@ -36,13 +36,26 @@ Cultura: milho de sequeiro.
 ### 2.2 Previsão de curto prazo
 
 - Open-Meteo, `precipitation_sum` e `precipitation_probability_max`.
-- Horizonte: até 16 dias, dos quais os primeiros 14 são usados na decisão.
+- Horizonte: até 16 dias, usados integralmente pela decisão e pelo plano.
 - Cache: 15 minutos. Sem rede, a decisão funciona só com o histórico.
 - Regra visual do resumo diário: probabilidade de chuva **≥ 50%** mostra
   “Chuva”. Abaixo de 50%, um código/volume de precipitação é apresentado como
   “Nublado”, mantendo a percentagem visível; probabilidade baixa, por si só,
   não significa “Sol”. “Sol” continua a depender dos códigos WMO 0/1. O corte
   de 50% é uma regra de apresentação, não uma garantia meteorológica.
+
+### 2.3 Plano de 30 dias
+
+- Dias 1–16: linhas da previsão Open-Meteo, marcadas como **Previsão**.
+- Dias 17–30: probabilidade histórica para a mesma data do calendário, calculada
+  a partir dos anos IMERG disponíveis e marcada como **Climatologia**. Não é uma
+  previsão.
+- Ações por dia: `plant`, `prepare`, `wait` e `monitor`, derivadas do estado e da
+  probabilidade de chuva. A climatologia nunca recomenda plantar.
+- Janela recomendada: `0–2` dias para `PLANT_NOW`; `days_to_plant–days_to_plant+2`
+  para `PLANT_IN_DAYS`; sem janela para `WAIT` ou `HIGH_RISK`.
+- Se a observação mais recente tiver mais de 7 dias, o plano não recomenda
+  plantar e mostra um aviso de dados desatualizados.
 
 ## 3. Definições
 
@@ -122,15 +135,15 @@ Estes valores são indicativos e serão calibrados com dados de campo na Fase 3.
 
 ## 7. Limitações
 
-- Cobertura IMERG descontínua: a base local tem 6.288 observações (6.271 Final
-  e 17 Early), entre 02/09/1998 e 01/01/2026. Dias em falta limitam a decisão
+- Cobertura IMERG descontínua: a base local tem 6.680 observações (6.271 Final
+  e 409 Early), entre 02/09/1998 e 13/11/2026. Dias em falta limitam a decisão
   sobre condições atuais; a previsão Open-Meteo é uma fonte separada.
 - IMERG Early tem maior erro do que o Final Run; o relevo de Manica e as
   chuvas convectivas aumentam a incerteza.
 - 0,1° não representa microclimas da machamba.
 - A regra de 20 mm/3 dias é um ponto de partida agronómico, não uma verdade
   local validada.
-- A previsão de 14 dias tem incerteza crescente.
+- A previsão de 16 dias tem incerteza crescente; a climatologia não é previsão.
 - Não há ainda validação com dados de campo nem com produtividade observada.
 
 ## 8. Validação planeada
