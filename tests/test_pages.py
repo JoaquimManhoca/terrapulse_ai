@@ -140,7 +140,9 @@ def test_local_languages_translate_every_page(client, lang, expected):
 
 def test_english_translates_analysis_chart_labels(client):
     html = client.get("/analise?lang=en").get_data(as_text=True)
-    assert "Total rainfall by rainy season, 1998 to 2024" in html
+    # The season range is derived from the data (fixture: 2014-2024).
+    assert "Total rainfall by rainy season, 2014 to 2024" in html
+    assert "Rainfall by rainy season (2014–2024)" in html
     assert "Rainfall (mm)" in html
     assert "IC 95%" not in html
 

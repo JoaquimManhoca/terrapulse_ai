@@ -50,6 +50,7 @@ def seasonal_view(lang: str = "pt") -> dict | None:
         "seasons": seasons,
         "n_used": len(usable),
         "excluded": len(seasons) - len(usable),
+        "span": {"start": years[0], "end": years[-1], "count": len(usable)},
         "bars": bars,
         "moving_avg": moving_avg,
         "trend_line": trend_line,
@@ -328,11 +329,14 @@ def model_view(lang: str = "pt") -> dict | None:
             }
             for name, value in ranked
         ]
+    from .training import training_season_span
+
     return {
         "version": metadata.get("version"),
         "saved_at": metadata.get("saved_at"),
         "data_status": metadata.get("data_status"),
         "metrics": metadata.get("metrics") or {},
         "splits": metadata.get("splits") or {},
+        "span": training_season_span(),
         "importances": items,
     }

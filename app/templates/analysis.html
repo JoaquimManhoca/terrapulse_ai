@@ -4,16 +4,18 @@
 
 {% block content %}
 <section class="hero">
-  <p class="eyebrow">{{ t('app.region') }} · {{ t('app.crop') }} · IMERG Final 1998–2024</p>
+  <p class="eyebrow">{{ t('app.region') }} · {{ t('app.crop') }}{% if season_span %} · IMERG {{ season_span.start }}–{{ season_span.end }}{% endif %}</p>
   <h1 class="page-title">{{ t('analysis.title') }}</h1>
-  <p class="page-intro">{{ t('analysis.intro') }}</p>
+  {% if season_span %}
+    <p class="page-intro">{{ t('analysis.intro').format(count=season_span.count, start=season_span.start, end=season_span.end) }}</p>
+  {% endif %}
 
   {% if not sections.seasonal %}
     <p class="notice">{{ t('analysis.no_data') }}</p>
   {% else %}
 
   <section class="panel">
-    <h2>{{ t('analysis.seasonal_title') }}</h2>
+    <h2>{{ t('analysis.seasonal_title').format(start=sections.seasonal.span.start, end=sections.seasonal.span.end) }}</h2>
     <div class="chart-wrap">{{ charts.seasonal|safe }}</div>
     <div class="stat-row">
       <div class="stat">
@@ -119,7 +121,7 @@
   {% if sections.model %}
   <section class="panel">
     <h2>{{ t('analysis.model_title') }}</h2>
-    <p class="panel-note">{{ t('analysis.model_note') }} <code>{{ sections.model.version }}</code></p>
+    {% if sections.model.span %}<p class="panel-note">{{ t('analysis.model_note').format(count=sections.model.span.count, range=sections.model.span.range) }} <code>{{ sections.model.version }}</code></p>{% endif %}
     {% if charts.importances %}
     <div class="chart-wrap">{{ charts.importances|safe }}</div>
     {% endif %}

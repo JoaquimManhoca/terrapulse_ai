@@ -120,17 +120,13 @@ def build_inference_frame(
     return row.loc[:, FEATURE_COLUMNS]
 
 
-def build_onset_dataset(observations: pd.DataFrame) -> pd.DataFrame:
-    """Create daily examples labeled by the existing effective-onset rule.
+def _complete_season_windows(precipitation, coverage, date_index):
+    """Yield complete rainy seasons as (year, start, end, values, coverage).
 
-    Only complete rainy seasons are included. Features use observations up to
-    each date; the target indicates an effective onset in the following 21 days.
+    A season is complete when daily precipitation and coverage exist from 29
+    days before October 1 through 21 days after March 31, so onset detection
+    and its 21-day label window never cross a data gap.
     """
-    precipitation, coverage, date_index = _prepare_observations(observations)
-    features = compute_daily_features(observations)
-
-    examples: list[dict] = []
-
     for season_year in range(date_index.min().year, date_index.max().year + 1):
         season_start = pd.Timestamp(season_year, 10, 1)
         season_end = pd.Timestamp(season_year + 1, 3, 31)
@@ -146,7 +142,38 @@ def build_onset_dataset(observations: pd.DataFrame) -> pd.DataFrame:
         season_coverage = coverage.reindex(support_index)
         if season_values.isna().any() or season_coverage.isna().any():
             continue
+        yield season_year, season_start, season_end, season_values, season_coverage
 
+
+def complete_seasons(observations: pd.DataFrame) -> list[int]:
+    """Rainy-season years that carry complete daily coverage for training."""
+    precipitation, coverage, date_index = _prepare_observations(observations)
+    return [
+        season_year
+        for season_year, *_ in _complete_season_windows(
+            precipitation, coverage, date_index
+        )
+    ]
+
+
+def build_onset_dataset(observations: pd.DataFrame) -> pd.DataFrame:
+    """Create daily examples labeled by the existing effective-onset rule.
+
+    Only complete rainy seasons are included. Features use observations up to
+    each date; the target indicates an effective onset in the following 21 days.
+    """
+    precipitation, coverage, date_index = _prepare_observations(observations)
+    features = compute_daily_features(observations)
+
+    examples: list[dict] = []
+
+    for (
+        season_year,
+        season_start,
+        season_end,
+        season_values,
+        _season_coverage,
+    ) in _complete_season_windows(precipitation, coverage, date_index):
         events = detect_onsets(
             season_values,
             season_start_month=Config.SEASON_START_MONTH,

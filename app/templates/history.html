@@ -37,7 +37,7 @@
 
   {% if seasons %}
   <section class="panel">
-    <h2>{{ t('history.seasons_title') }}</h2>
+    <h2>{{ t('history.seasons_title').format(start=season_span[0], end=season_span[1]) }}</h2>
     <p class="panel-note">{{ t('history.expand_hint') }}</p>
     <div class="season-accordion">
       {% for season in seasons %}

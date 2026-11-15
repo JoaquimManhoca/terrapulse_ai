@@ -10,6 +10,7 @@ from ..ml.training_data import (
     FEATURE_COLUMNS,
     TARGET_COLUMN,
     build_onset_dataset,
+    complete_seasons,
     split_by_season,
 )
 from .series_service import load_daily
@@ -60,6 +61,24 @@ def ensure_trained_model() -> dict | None:
     if existing is not None and existing[1].get("data_status") == "real":
         return existing[1]
     return train_and_persist()
+
+
+def training_season_span() -> dict | None:
+    """Rainy-season range the classifier is trained on (complete seasons)."""
+    frame = load_daily()
+    frame = frame.loc[frame["source"].isin(_REAL_OBSERVATION_SOURCES)]
+    if frame.empty:
+        return None
+    years = complete_seasons(frame)
+    if not years:
+        return None
+    first, last = years[0], years[-1]
+    return {
+        "count": len(years),
+        "start": first,
+        "end": last,
+        "range": f"{first}/{(first + 1) % 100:02d}–{last}/{(last + 1) % 100:02d}",
+    }
 
 
 def active_model_info() -> dict | None:

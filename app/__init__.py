@@ -521,10 +521,15 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             season_monthly_totals,
         )
 
+        seasons = season_monthly_totals(lang=g.lang)
+        season_span = (
+            (seasons[0]["season"], seasons[-1]["season"]) if seasons else None
+        )
         return render_template(
             "history.html",
             monthly=monthly_totals(24),
-            seasons=season_monthly_totals(lang=g.lang),
+            seasons=seasons,
+            season_span=season_span,
             data_status=data_status(),
             last_updated=last_updated(),
         )
@@ -550,12 +555,28 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             "comparison": period_comparison_view(lang),
             "model": model_view(lang),
         }
+        season_span = (
+            sections["seasonal"]["span"] if sections["seasonal"] else None
+        )
+        if season_span is None:
+            from .services.season_series import seasonal_totals
+
+            all_seasons = seasonal_totals()
+            if all_seasons:
+                season_span = {
+                    "start": all_seasons[0]["season"],
+                    "end": all_seasons[-1]["season"],
+                    "count": len(all_seasons),
+                }
         charts_out = {
             "seasonal": charts.bar_chart(
                 sections["seasonal"]["bars"],
                 line=sections["seasonal"]["trend_line"],
                 line_label=translate("chart.sen_trend", lang),
-                aria_label=translate("chart.seasonal_aria", lang),
+                aria_label=translate("chart.seasonal_aria", lang).format(
+                    start=sections["seasonal"]["span"]["start"],
+                    end=sections["seasonal"]["span"]["end"],
+                ),
                 y_max=sections["seasonal"]["y_max"],
                 label_step=2,
                 x_label=translate("chart.season_x", lang),
@@ -613,6 +634,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
             "analysis.html",
             sections=sections,
             charts=charts_out,
+            season_span=season_span,
         )
 
     @app.route("/sobre")
